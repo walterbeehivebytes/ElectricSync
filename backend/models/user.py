@@ -5,9 +5,10 @@ from typing import Optional
 
 
 class UserRole(str, Enum):
-    ELECTRICIAN = "electrician"
-    JOURNEYMAN = "journeyman"
-    FOREMAN = "foreman"
+    PROJECT_MANAGER = "project_manager"
+    SITE_MANAGER = "site_manager"
+    TEAM_LEAD = "team_lead"
+    TEAM_MEMBER = "team_member"
 
 
 class User(BaseModel):
@@ -25,13 +26,13 @@ class User(BaseModel):
         json_schema_extra = {
             "example": {
                 "id": "user_001",
-                "email": "john.doe@example.com",
-                "name": "John Doe",
-                "role": "journeyman",
-                "phone": "+1-555-0100",
-                "license_number": "JM-12345",
-                "years_experience": 5,
-                "certifications": ["OSHA-30", "Arc Flash Safety"],
+                "email": "pm@esync.com",
+                "name": "Diana Chen",
+                "role": "project_manager",
+                "phone": "+1-555-0101",
+                "license_number": "PM-12345",
+                "years_experience": 12,
+                "certifications": ["OSHA-30", "PMP", "Master Electrician"],
                 "active": True
             }
         }
