@@ -134,12 +134,14 @@ class _QCSignoffState extends State<QCSignoff> {
               ],
             );
           } else {
-            return ListView(
-              children: [
-                _buildBlueprintSection(),
-                const Divider(height: 1),
-                _buildWorkPhotosSection(),
-              ],
+            return SingleChildScrollView(
+              child: Column(
+                children: [
+                  SizedBox(height: 360, child: _buildBlueprintSection()),
+                  const Divider(height: 1),
+                  SizedBox(height: 620, child: _buildWorkPhotosSection()),
+                ],
+              ),
             );
           }
         },
