@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'dart:async';
+import '../services/auth_service.dart';
 import 'auth/login_screen.dart';
+import 'home_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -10,94 +10,93 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> {
+class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+
   @override
   void initState() {
     super.initState();
-    // Navigate to login screen after 2.5 seconds to allow animations to finish
-    Timer(const Duration(milliseconds: 2500), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-            transitionsBuilder: (context, animation, secondaryAnimation, child) {
-              return FadeTransition(opacity: animation, child: child);
-            },
-            transitionDuration: const Duration(milliseconds: 800),
-          ),
-        );
-      }
-    });
+
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _animationController,
+        curve: Curves.easeIn,
+      ),
+    );
+
+    _animationController.forward();
+    _initAndNavigate();
+  }
+
+  Future<void> _initAndNavigate() async {
+    final authService = AuthService();
+    await Future.wait([
+      authService.init(),
+      Future.delayed(const Duration(seconds: 2)),
+    ]);
+    if (!mounted) return;
+    if (authService.currentUser != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => HomeScreen(authService: authService)),
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF1E293B), // Slate 800
-              Color(0xFF0F172A), // Slate 900
-            ],
-          ),
-        ),
-        child: Center(
-          child: Column(
+      backgroundColor: Colors.amber[700],
+      body: Center(
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: const Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               // Lightning logo
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.05),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFFFFB300).withValues(alpha: 0.2),
-                      blurRadius: 30,
-                      spreadRadius: 10,
-                    )
-                  ],
-                ),
-                child: const Icon(
-                  Icons.bolt,
-                  size: 100,
-                  color: Color(0xFFFFB300), // Amber 600
-                ),
-              ).animate().fade(duration: 800.ms).scale(curve: Curves.easeOutBack, duration: 800.ms),
-              const SizedBox(height: 32),
-              
-              const Text(
+              Icon(
+                Icons.bolt,
+                size: 120,
+                color: Colors.white,
+              ),
+              SizedBox(height: 24),
+              Text(
                 'ElectricSync',
                 style: TextStyle(
-                  fontSize: 36,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                   color: Colors.white,
-                  letterSpacing: -0.5,
+                  letterSpacing: 1.2,
                 ),
-              ).animate().fade(delay: 400.ms, duration: 600.ms).slideY(begin: 0.2, end: 0, curve: Curves.easeOut),
-              
-              const SizedBox(height: 12),
-              
-              const Text(
+              ),
+              SizedBox(height: 8),
+              Text(
                 'For Electricians & Professionals',
                 style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF94A3B8), // Slate 400
+                  fontSize: 14,
+                  color: Colors.white70,
                   letterSpacing: 0.5,
                 ),
-              ).animate().fade(delay: 800.ms, duration: 600.ms),
-              
-              const SizedBox(height: 64),
-              
-              const CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFFB300)),
-                strokeWidth: 3,
-              ).animate().fade(delay: 1200.ms, duration: 600.ms),
+              ),
+              SizedBox(height: 48),
+              CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
             ],
           ),
         ),

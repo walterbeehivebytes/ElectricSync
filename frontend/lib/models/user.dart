@@ -2,7 +2,35 @@ enum UserRole {
   projectManager,
   siteManager,
   teamLead,
-  teamMember,
+  teamMember;
+
+  String get value {
+    switch (this) {
+      case UserRole.projectManager:
+        return 'project_manager';
+      case UserRole.siteManager:
+        return 'site_manager';
+      case UserRole.teamLead:
+        return 'team_lead';
+      case UserRole.teamMember:
+        return 'team_member';
+    }
+  }
+
+  static UserRole fromString(String value) {
+    switch (value) {
+      case 'project_manager':
+        return UserRole.projectManager;
+      case 'site_manager':
+        return UserRole.siteManager;
+      case 'team_lead':
+        return UserRole.teamLead;
+      case 'team_member':
+        return UserRole.teamMember;
+      default:
+        return UserRole.teamMember;
+    }
+  }
 }
 
 class User {

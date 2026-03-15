@@ -34,6 +34,31 @@ class AuthUser {
     }
   }
 
+  factory AuthUser.fromJson(Map<String, dynamic> json) {
+    final certs = json['certifications'];
+    return AuthUser(
+      id: json['id'] as String,
+      email: json['email'] as String,
+      name: json['name'] as String,
+      role: UserRole.fromString(json['role'] as String),
+      phone: json['phone'] as String?,
+      jobTitle: (json['jobTitle'] ?? json['license_number']) as String?,
+      company: json['company'] as String? ?? 'ElectricSync Construction',
+      certifications: certs is List ? certs.join(', ') : certs as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'email': email,
+        'name': name,
+        'role': role.value,
+        'phone': phone,
+        'jobTitle': jobTitle,
+        'company': company,
+        'certifications': certifications,
+      };
+
   AuthUser copyWith({
     String? id,
     String? email,

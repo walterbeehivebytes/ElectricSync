@@ -1,77 +1,44 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/auth_user.dart';
 import '../models/user.dart';
+import 'api_service.dart';
 
 class AuthService {
-  // Mock user database
-  static final Map<String, Map<String, dynamic>> _users = {
-    'pm@esync.com': {
-      'password': 'password123',
-      'user': const AuthUser(
-        id: '1',
-        email: 'pm@esync.com',
-        name: 'Diana Chen',
-        role: UserRole.projectManager,
-        phone: '(555) 100-2000',
-        jobTitle: 'Project Manager',
-        company: 'ElectricSync Construction',
-        certifications: 'PMP, Master Electrician License',
-      ),
-    },
-    'site@esync.com': {
-      'password': 'password123',
-      'user': const AuthUser(
-        id: '2',
-        email: 'site@esync.com',
-        name: 'James Park',
-        role: UserRole.siteManager,
-        phone: '(555) 200-3000',
-        jobTitle: 'Site Manager',
-        company: 'ElectricSync Construction',
-        certifications: 'Master Electrician, OSHA 30',
-      ),
-    },
-    'lead@esync.com': {
-      'password': 'password123',
-      'user': const AuthUser(
-        id: '3',
-        email: 'lead@esync.com',
-        name: 'Carmen Ortiz',
-        role: UserRole.teamLead,
-        phone: '(555) 300-4000',
-        jobTitle: 'Team Lead',
-        company: 'ElectricSync Construction',
-        certifications: 'Journeyman License #54321, OSHA 10',
-      ),
-    },
-    'member@esync.com': {
-      'password': 'password123',
-      'user': const AuthUser(
-        id: '4',
-        email: 'member@esync.com',
-        name: 'Mike Rodriguez',
-        role: UserRole.teamMember,
-        phone: '(555) 400-5000',
-        jobTitle: 'Electrician',
-        company: 'ElectricSync Construction',
-        certifications: 'Apprentice License, OSHA 10',
-      ),
-    },
-  };
-
+  final _api = ApiService();
   AuthUser? _currentUser;
 
   AuthUser? get currentUser => _currentUser;
 
-  Future<AuthUser?> login(String email, String password) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    final userData = _users[email.toLowerCase()];
-    if (userData != null && userData['password'] == password) {
-      _currentUser = userData['user'] as AuthUser;
-      return _currentUser;
+  /// Call once at app startup to restore a saved session.
+  Future<void> init() async {
+    await _api.init();
+    if (!_api.hasToken) return;
+    final prefs = await SharedPreferences.getInstance();
+    final userJson = prefs.getString('current_user');
+    if (userJson != null) {
+      try {
+        _currentUser = AuthUser.fromJson(jsonDecode(userJson) as Map<String, dynamic>);
+      } catch (_) {
+        await _api.clearToken();
+      }
     }
-    return null;
+  }
+
+  Future<AuthUser?> login(String email, String password) async {
+    try {
+      final response = await _api.post('/api/auth/login', {
+        'email': email,
+        'password': password,
+      });
+      await _api.setToken(response['access_token'] as String);
+      _currentUser = AuthUser.fromJson(response['user'] as Map<String, dynamic>);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('current_user', jsonEncode(_currentUser!.toJson()));
+      return _currentUser;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<AuthUser?> signUp({
@@ -80,49 +47,37 @@ class AuthService {
     required String name,
     required UserRole role,
   }) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
-    // Check if user already exists
-    if (_users.containsKey(email.toLowerCase())) {
+    try {
+      final response = await _api.post('/api/auth/signup', {
+        'email': email,
+        'password': password,
+        'name': name,
+        'role': role.value,
+      });
+      await _api.setToken(response['access_token'] as String);
+      _currentUser = AuthUser.fromJson(response['user'] as Map<String, dynamic>);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('current_user', jsonEncode(_currentUser!.toJson()));
+      return _currentUser;
+    } catch (_) {
       return null;
     }
-
-    // Create new user
-    final newUser = AuthUser(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      email: email,
-      name: name,
-      role: role,
-    );
-
-    _users[email.toLowerCase()] = {
-      'password': password,
-      'user': newUser,
-    };
-
-    _currentUser = newUser;
-    return _currentUser;
   }
 
   Future<bool> resetPassword(String email) async {
-    // Simulate network delay
+    // Not yet implemented in backend
     await Future.delayed(const Duration(seconds: 1));
-
-    return _users.containsKey(email.toLowerCase());
+    return email.isNotEmpty;
   }
 
   Future<void> updateProfile(AuthUser updatedUser) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(milliseconds: 500));
-
-    if (_currentUser != null) {
-      _currentUser = updatedUser;
-      _users[updatedUser.email.toLowerCase()]!['user'] = updatedUser;
-    }
+    _currentUser = updatedUser;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('current_user', jsonEncode(updatedUser.toJson()));
   }
 
-  void logout() {
+  Future<void> logout() async {
     _currentUser = null;
+    await _api.clearToken();
   }
 }

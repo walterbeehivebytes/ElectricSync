@@ -54,6 +54,54 @@ class Task {
     this.helpMessage,
   });
 
+  factory Task.fromApiJson(Map<String, dynamic> json) {
+    return Task(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String? ?? '',
+      projectId: json['project_id'] as String,
+      projectName: json['project_id'] as String, // resolved later if needed
+      location: null,
+      materialKits: (json['materials_needed'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
+      status: _statusFromApi(json['status'] as String),
+      priority: _priorityFromApi(json['priority'] as String),
+      assignedTo: json['assigned_to'] as String?,
+      createdAt: DateTime.parse(json['created_at'] as String),
+      completedAt: json['completed_at'] != null
+          ? DateTime.parse(json['completed_at'] as String)
+          : null,
+    );
+  }
+
+  static TaskStatus _statusFromApi(String s) {
+    switch (s) {
+      case 'in_progress':
+        return TaskStatus.inProgress;
+      case 'completed':
+        return TaskStatus.completed;
+      case 'review':
+        return TaskStatus.verified;
+      default:
+        return TaskStatus.assigned;
+    }
+  }
+
+  static TaskPriority _priorityFromApi(String p) {
+    switch (p) {
+      case 'urgent':
+        return TaskPriority.urgent;
+      case 'high':
+        return TaskPriority.high;
+      case 'low':
+        return TaskPriority.low;
+      default:
+        return TaskPriority.medium;
+    }
+  }
+
   Task copyWith({
     String? id,
     String? title,
