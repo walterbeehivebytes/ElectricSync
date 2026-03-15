@@ -1,25 +1,35 @@
-"""Claude AI service for work order generation and crew dispatch recommendations."""
+"""AI service for work order generation and crew dispatch recommendations (Groq / Llama 3.3)."""
 import os
 import json
-import anthropic
+from groq import Groq
 
 _client = None
 
 
-def _get_client() -> anthropic.Anthropic:
+def _get_client() -> Groq:
     global _client
     if _client is None:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        api_key = os.getenv("GROQ_API_KEY")
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable not set")
-        _client = anthropic.Anthropic(api_key=api_key)
+            raise ValueError("GROQ_API_KEY environment variable not set")
+        _client = Groq(api_key=api_key)
     return _client
+
+
+def _parse_json(raw: str) -> dict:
+    """Strip optional markdown code fences and parse JSON."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return json.loads(raw.strip())
 
 
 def generate_work_order(description: str) -> dict:
     """
     PM provides a plain-text description of work needed.
-    Claude returns a structured work order with tasks, materials, and estimates.
+    Llama 3.3 returns a structured work order with tasks, materials, and estimates.
     """
     client = _get_client()
 
@@ -54,25 +64,19 @@ Guidelines:
 - Estimated hours should be realistic for a journeyman electrician
 - Priority should reflect urgency and impact on other trades"""
 
-    message = client.messages.create(
-        model="claude-opus-4-6",
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = message.content[0].text.strip()
-    # Strip markdown code blocks if Claude wraps the JSON
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    return json.loads(raw.strip())
+    return _parse_json(response.choices[0].message.content)
 
 
 def dispatch_recommend(tasks: list[dict], crew: list[dict]) -> dict:
     """
     Site Manager provides unassigned tasks and available crew.
-    Claude recommends optimal assignments with reasoning.
+    Llama 3.3 recommends optimal assignments with reasoning.
     """
     client = _get_client()
 
@@ -104,15 +108,10 @@ Respond with ONLY valid JSON (no markdown, no explanation):
   "summary": "1-2 sentence overall dispatch strategy summary"
 }}"""
 
-    message = client.messages.create(
-        model="claude-opus-4-6",
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
         max_tokens=1024,
         messages=[{"role": "user", "content": prompt}],
     )
 
-    raw = message.content[0].text.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    return json.loads(raw.strip())
+    return _parse_json(response.choices[0].message.content)
