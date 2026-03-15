@@ -7,6 +7,9 @@ import 'home/site_manager_home.dart';
 import 'home/team_lead_home.dart';
 import 'home/team_member_home.dart';
 import 'profile/profile_screen.dart';
+import 'tasks/work_order_creator.dart';
+import 'tasks/crew_dispatch.dart';
+import 'tasks/qc_signoff.dart';
 
 class HomeScreen extends StatefulWidget {
   final AuthService authService;
@@ -46,6 +49,37 @@ class _HomeScreenState extends State<HomeScreen> {
       case UserRole.teamMember:
         return 'My Workspace';
     }
+  }
+
+  void _onTabTapped(int index) {
+    if (index == 1) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Messages coming soon'), duration: Duration(seconds: 1)),
+      );
+      return;
+    }
+
+    if (index == 2) {
+      final role = widget.authService.currentUser!.role;
+      Widget? screen;
+      switch (role) {
+        case UserRole.projectManager:
+          screen = const WorkOrderCreator();
+          break;
+        case UserRole.siteManager:
+          screen = const CrewDispatch();
+          break;
+        case UserRole.teamLead:
+          screen = const QCSignoff();
+          break;
+        case UserRole.teamMember:
+          return; // TM dashboard is already task-focused
+      }
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen!));
+      return;
+    }
+
+    setState(() => _currentIndex = index);
   }
 
   @override
@@ -141,11 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
           currentIndex: _currentIndex,
           type: BottomNavigationBarType.fixed,
-          onTap: (index) {
-            setState(() {
-              _currentIndex = index;
-            });
-          },
+          onTap: _onTabTapped,
         ),
       ),
     );
