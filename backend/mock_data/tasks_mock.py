@@ -139,3 +139,17 @@ def get_tasks_by_user(user_id: str):
 def get_tasks_by_status(status: TaskStatus):
     """Get all tasks with a specific status"""
     return [task for task in MOCK_TASKS if task.status == status]
+
+
+def create_task(data: dict, created_by: str) -> Task:
+    """Append a new task to the in-memory list and return it."""
+    import uuid
+    new_task = Task(
+        id=f"task_{uuid.uuid4().hex[:8]}",
+        created_by=created_by,
+        created_at=datetime.utcnow(),
+        status=TaskStatus.TODO,
+        **data,
+    )
+    MOCK_TASKS.append(new_task)
+    return new_task

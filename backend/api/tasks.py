@@ -1,6 +1,8 @@
 """Task API endpoints"""
 from fastapi import APIRouter, HTTPException, Depends
-from models.task import Task, TaskStatus
+from pydantic import BaseModel
+from typing import Optional
+from models.task import Task, TaskStatus, TaskPriority
 from models.user import User, UserRole
 from mock_data.tasks_mock import (
     get_all_tasks,
@@ -8,10 +10,30 @@ from mock_data.tasks_mock import (
     get_tasks_by_project,
     get_tasks_by_user,
     get_tasks_by_status,
+    create_task,
 )
 from services.auth_service import get_current_user, require_roles
 
+
+class TaskCreate(BaseModel):
+    project_id: str
+    title: str
+    description: Optional[str] = None
+    priority: TaskPriority = TaskPriority.MEDIUM
+    materials_needed: list[str] = []
+    safety_requirements: list[str] = []
+    estimated_hours: Optional[float] = None
+
 router = APIRouter()
+
+
+@router.post("/", response_model=Task, status_code=201)
+async def create_task_endpoint(
+    body: TaskCreate,
+    current_user: User = Depends(require_roles(UserRole.PROJECT_MANAGER, UserRole.SITE_MANAGER)),
+):
+    """Create a new task — PM or SM only."""
+    return create_task(body.model_dump(), created_by=current_user.id)
 
 
 @router.get("/", response_model=list[Task])

@@ -22,7 +22,14 @@ class _WorkOrderCreatorState extends State<WorkOrderCreator> {
   TaskPriority _selectedPriority = TaskPriority.medium;
   final List<String> _selectedMaterialKits = [];
   bool _aiLoading = false;
+  bool _saving = false;
   Map<String, dynamic>? _aiResult;
+
+  static const _projectIds = {
+    'Office Building Rewiring': 'proj_001',
+    'Warehouse Lighting Upgrade': 'proj_002',
+    'Hospital Emergency Power': 'proj_003',
+  };
 
   final List<String> _availableProjects = [
     'Office Building Rewiring',
@@ -119,12 +126,33 @@ class _WorkOrderCreatorState extends State<WorkOrderCreator> {
     }
   }
 
-  void _createWorkOrder() {
-    if (_formKey.currentState!.validate()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Work order created successfully!'), backgroundColor: Colors.green),
-      );
-      Navigator.pop(context);
+  Future<void> _createWorkOrder() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _saving = true);
+    try {
+      final location = '${_floorController.text.trim()}, ${_roomController.text.trim()}';
+      final description = _descriptionController.text.trim();
+      await _api.post('/api/tasks/', {
+        'project_id': _projectIds[_selectedProject] ?? 'proj_001',
+        'title': _titleController.text.trim(),
+        'description': '$location: $description',
+        'priority': _selectedPriority.name,
+        'materials_needed': _selectedMaterialKits,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Work order created!'), backgroundColor: Colors.green),
+        );
+        Navigator.pop(context);
+      }
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -371,9 +399,11 @@ class _WorkOrderCreatorState extends State<WorkOrderCreator> {
 
             // ── Submit ────────────────────────────────────────────────────
             ElevatedButton.icon(
-              onPressed: _createWorkOrder,
-              icon: const Icon(Icons.add_task),
-              label: const Text('Create Work Order'),
+              onPressed: _saving ? null : _createWorkOrder,
+              icon: _saving
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.add_task),
+              label: Text(_saving ? 'Saving…' : 'Create Work Order'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.amber[700],
                 foregroundColor: Colors.white,
