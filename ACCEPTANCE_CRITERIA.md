@@ -10,7 +10,7 @@
 
 ## AC-1: Authentication & Authorization
 
-### AC-1.1 — Login with real JWT [MOCK→REAL]
+### AC-1.1 — Login with real JWT [EXISTS]
 **Feature:** Replace mock auth with real backend login
 **Given** a user is on the login screen
 **When** they enter a valid email and password and tap Login
@@ -30,7 +30,7 @@
 
 ---
 
-### AC-1.2 — Role-gated routes [UPDATE]
+### AC-1.2 — Role-gated routes [EXISTS]
 **Feature:** Each route is only accessible to the correct role(s)
 **Given** a Team Member is authenticated
 **When** they attempt to access any PM-only screen (e.g., work order generator, blueprint upload)
@@ -66,7 +66,7 @@
 
 ## AC-2: Project Manager Skills
 
-### AC-2.1 — Portfolio Dashboard shows real projects [MOCK→REAL]
+### AC-2.1 — Portfolio Dashboard shows real projects [EXISTS]
 **Feature:** PM home screen displays live project data
 **Given** a PM is logged in
 **When** their dashboard loads
@@ -106,7 +106,7 @@
 
 ---
 
-### AC-2.3 — AI Work Order Generator [NEW]
+### AC-2.3 — AI Work Order Generator [EXISTS]
 **Feature:** PM types a plain-language job description; AI returns structured tasks
 **Given** a PM is on the Work Order Creator screen
 **When** they type a description like "Run conduit from panel B to floors 3-5, pull #12 wire for 40 circuits" and tap Generate
@@ -147,7 +147,7 @@
 
 ## AC-3: Site Manager Skills
 
-### AC-3.1 — Site Operations Dashboard shows real data [MOCK→REAL]
+### AC-3.1 — Site Operations Dashboard shows real data [EXISTS]
 **Feature:** SM home screen shows live crew and task status
 **Given** a Site Manager is logged in
 **When** their dashboard loads
@@ -159,7 +159,7 @@
 
 ---
 
-### AC-3.2 — Crew Dispatch [UPDATE]
+### AC-3.2 — Crew Dispatch [EXISTS]
 **Feature:** SM dispatches crew to tasks
 **Given** a Site Manager opens Crew Dispatch
 **When** they select a task and assign a Team Lead or Team Member
@@ -176,7 +176,7 @@
 
 ---
 
-### AC-3.3 — AI Dispatch Recommendation [NEW]
+### AC-3.3 — AI Dispatch Recommendation [EXISTS]
 **Feature:** AI recommends which crew member should handle which task
 **Given** a Site Manager is on the Crew Dispatch screen
 **When** they tap "Get AI Recommendation" on an unassigned task
@@ -212,7 +212,7 @@
 
 ## AC-4: Team Lead Skills
 
-### AC-4.1 — Crew Status Dashboard shows real data [MOCK→REAL]
+### AC-4.1 — Crew Status Dashboard shows real data [EXISTS]
 **Feature:** TL home screen shows their crew's real task status
 **Given** a Team Lead is logged in
 **When** their dashboard loads
@@ -224,7 +224,7 @@
 
 ---
 
-### AC-4.2 — Task Assignment to Team Members [UPDATE]
+### AC-4.2 — Task Assignment to Team Members [EXISTS]
 **Feature:** TL assigns a task to a specific Team Member
 **Given** a Team Lead is viewing an unassigned task in their queue
 **When** they tap Assign and select a Team Member from their crew
@@ -271,7 +271,7 @@
 
 ## AC-5: Team Member Skills
 
-### AC-5.1 — My Workspace shows real assigned tasks [MOCK→REAL]
+### AC-5.1 — My Workspace shows real assigned tasks [EXISTS]
 **Feature:** TM home screen shows their real current task
 **Given** a Team Member is logged in
 **When** their dashboard loads
@@ -341,45 +341,47 @@
 
 ## AC-6: Cross-Role Data Flow (Milestone 1 Demo)
 
-### AC-6.1 — Full Day-in-the-Life Flow [NEW — integration test]
+### AC-6.1 — Full Day-in-the-Life Flow [IN PROGRESS]
 **The sequence that must work end-to-end:**
 
 ```
-1. PM logs in
-   → Creates a project via AI work order generator
-   → Publishes 3 tasks
+1. PM logs in  [EXISTS]
+   → Creates task(s) via AI work order generator or manual form
+   → Tasks appear in SM "Needs Team Lead" queue immediately
 
-2. Site Manager logs in
-   → Sees the 3 new tasks in pending queue
-   → Requests AI dispatch recommendation
-   → Accepts recommendation → assigns Task 1 to Team Lead
+2. Site Manager logs in  [EXISTS]
+   → Sees unassigned tasks in "Needs Team Lead" section
+   → Confirms/edits priority in assign sheet
+   → Assigns to Team Lead → task moves to "Assigned to Team Leads"
+   → (Optional) uses AI Dispatch Recommendation
 
-3. Team Lead logs in
-   → Sees Task 1 assigned to their crew
-   → Assigns Task 1 to a specific Team Member
+3. Team Lead logs in  [EXISTS]
+   → Sees assigned task in "My Tasks"
+   → Can also create new tasks (appear in My Tasks immediately)
+   → Confirms/edits priority in assign sheet
+   → Assigns to Team Member → task moves to "Crew Tasks"
 
-4. Team Member logs in
-   → Sees Task 1 in "My Workspace"
-   → Taps Start → taps Complete → uploads photo
+4. Team Member logs in  [EXISTS]
+   → Sees assigned tasks in "Up Next" sorted by priority (urgent first)
+   → Taps Start → taps Complete → uploads photo  [PENDING: start/complete wiring]
 
-5. Team Lead logs in
-   → Sees Task 1 in QC queue
-   → Approves it
+5. Team Lead logs in  [PENDING]
+   → Sees Task in QC queue → Approves it
 
-6. Site Manager logs in
-   → Sees Task 1 as verified in project progress
+6. Site Manager logs in  [PENDING]
+   → Sees task as verified in project progress
 
-7. PM logs in
+7. PM logs in  [PENDING]
    → Portfolio shows updated task count and % progress
 ```
 
-**Definition of Done:** All 7 steps work in sequence without a page reload between users.
+**Steps 1–3 working.** Steps 4–7 require AC-5.2 (Start/Complete wiring) and AC-4.4 (QC sign-off API).
 
 ---
 
 ## AC-7: Backend — Role System Update [UPDATE]
 
-### AC-7.1 — Backend roles match frontend
+### AC-7.1 — Backend roles match frontend [EXISTS]
 **Given** the backend currently uses ELECTRICIAN / JOURNEYMAN / FOREMAN
 **When** this AC is complete
 **Then** all backend models, mock data, and API responses use: PROJECT_MANAGER / SITE_MANAGER / TEAM_LEAD / TEAM_MEMBER

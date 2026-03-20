@@ -36,7 +36,10 @@ class _TeamMemberHomeState extends State<TeamMemberHome> {
   @override
   Widget build(BuildContext context) {
     final current = _tasks.where((t) => t.status == TaskStatus.inProgress).toList();
-    final upcoming = _tasks.where((t) => t.status == TaskStatus.assigned || t.status == TaskStatus.unassigned).toList();
+    final upcoming = _tasks
+        .where((t) => t.status == TaskStatus.assigned || t.status == TaskStatus.unassigned)
+        .toList()
+      ..sort((a, b) => _priorityOrder(a.priority).compareTo(_priorityOrder(b.priority)));
     final completed = _tasks.where((t) => t.status == TaskStatus.completed).toList();
 
     return RefreshIndicator(
@@ -157,8 +160,12 @@ class _TeamMemberHomeState extends State<TeamMemberHome> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => const TaskDetailView()));
+                onPressed: () async {
+                  final updated = await Navigator.push<bool>(
+                    context,
+                    MaterialPageRoute(builder: (_) => TaskDetailView(task: task)),
+                  );
+                  if (updated == true && mounted) _loadTasks();
                 },
                 icon: const Icon(Icons.open_in_new),
                 label: const Text('Open Task'),
@@ -201,7 +208,13 @@ class _TeamMemberHomeState extends State<TeamMemberHome> {
           ),
           child: Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
         ),
-        onTap: () {},
+        onTap: () async {
+          final updated = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(builder: (_) => TaskDetailView(task: task)),
+          );
+          if (updated == true && mounted) _loadTasks();
+        },
       ),
     );
   }
@@ -211,6 +224,11 @@ class _TeamMemberHomeState extends State<TeamMemberHome> {
       dense: true,
       leading: Icon(Icons.check_circle, color: Colors.green[700], size: 20),
       title: Text(task.title, style: const TextStyle(fontSize: 14)),
+      trailing: const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => TaskDetailView(task: task)),
+      ),
     );
   }
 
@@ -249,4 +267,11 @@ class _TeamMemberHomeState extends State<TeamMemberHome> {
       case TaskPriority.low: return 'Low';
     }
   }
+
+  int _priorityOrder(TaskPriority p) => switch (p) {
+    TaskPriority.urgent => 0,
+    TaskPriority.high   => 1,
+    TaskPriority.medium => 2,
+    TaskPriority.low    => 3,
+  };
 }

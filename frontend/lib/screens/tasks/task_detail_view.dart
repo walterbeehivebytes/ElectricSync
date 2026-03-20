@@ -1,18 +1,33 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import '../../models/task.dart';
+import '../../services/task_service.dart';
 
 class TaskDetailView extends StatefulWidget {
-  const TaskDetailView({super.key});
+  final Task task;
+  const TaskDetailView({super.key, required this.task});
 
   @override
   State<TaskDetailView> createState() => _TaskDetailViewState();
 }
 
 class _TaskDetailViewState extends State<TaskDetailView> {
+  final _taskService = TaskService();
+  late Task _task;
+  bool _saving = false;
   bool _isRunning = false;
   int _elapsedSeconds = 0;
   Timer? _timer;
   final List<String> _uploadedPhotos = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _task = widget.task;
+    if (_task.status == TaskStatus.inProgress) {
+      _startTimer();
+    }
+  }
 
   @override
   void dispose() {
@@ -20,60 +35,113 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     super.dispose();
   }
 
-  void _toggleTimer() {
-    setState(() {
-      _isRunning = !_isRunning;
-
-      if (_isRunning) {
-        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-          setState(() => _elapsedSeconds++);
-        });
-      } else {
-        _timer?.cancel();
-      }
+  void _startTimer() {
+    setState(() => _isRunning = true);
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() => _elapsedSeconds++);
     });
+  }
+
+  void _toggleTimer() {
+    if (_isRunning) {
+      setState(() => _isRunning = false);
+      _timer?.cancel();
+    } else {
+      _startTimer();
+    }
   }
 
   String _formatDuration(int seconds) {
-    final hours = seconds ~/ 3600;
-    final minutes = (seconds % 3600) ~/ 60;
-    final secs = seconds % 60;
-    return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    final s = seconds % 60;
+    return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
   }
 
-  void _uploadPhoto() {
-    // In production, this would open camera/gallery
-    setState(() {
-      _uploadedPhotos.add('photo_${_uploadedPhotos.length + 1}.jpg');
-    });
+  Future<void> _startTask() async {
+    setState(() => _saving = true);
+    try {
+      final updated = await _taskService.updateTask(_task.id, {'status': 'in_progress'});
+      setState(() { _task = updated; _saving = false; });
+      if (!_isRunning) _startTimer();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Task started!'), backgroundColor: Colors.green),
+        );
+      }
+    } catch (e) {
+      setState(() => _saving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not start task'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Photo uploaded successfully'),
-        backgroundColor: Colors.green,
+  void _completeTask() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Complete Task?'),
+        content: const Text(
+          'Mark this task as complete and send to your Team Lead for QC verification.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              setState(() => _saving = true);
+              try {
+                await _taskService.updateTask(_task.id, {'status': 'review'});
+                if (mounted) Navigator.pop(context, true);
+              } catch (e) {
+                setState(() => _saving = false);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Could not complete task'), backgroundColor: Colors.red),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Complete'),
+          ),
+        ],
       ),
     );
   }
 
+  void _uploadPhoto() {
+    setState(() => _uploadedPhotos.add('photo_${_uploadedPhotos.length + 1}.jpg'));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Photo uploaded'), backgroundColor: Colors.green),
+    );
+  }
+
   void _requestHelp() {
+    final controller = TextEditingController();
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.help_outline, color: Colors.orange),
-            SizedBox(width: 12),
-            Text('Request Help'),
-          ],
-        ),
-        content: const Column(
+      builder: (ctx) => AlertDialog(
+        title: const Row(children: [
+          Icon(Icons.help_outline, color: Colors.orange),
+          SizedBox(width: 12),
+          Text('Request Help'),
+        ]),
+        content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('What do you need help with?'),
-            SizedBox(height: 12),
+            const Text('What do you need help with?'),
+            const SizedBox(height: 12),
             TextField(
-              decoration: InputDecoration(
+              controller: controller,
+              decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Describe the issue...',
               ),
@@ -82,13 +150,10 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
-              Navigator.pop(context);
+              Navigator.pop(ctx);
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('Help request sent to your Team Lead'),
@@ -107,58 +172,21 @@ class _TaskDetailViewState extends State<TaskDetailView> {
     );
   }
 
-  void _completeTask() {
-    if (_uploadedPhotos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please upload at least one work photo'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Complete Task?'),
-        content: const Text(
-          'Are you sure you want to mark this task as complete? '
-          'It will be sent to your Team Lead for verification.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Task completed and sent for verification'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Complete'),
-          ),
-        ],
-      ),
-    );
-  }
+  (String, Color) _priorityStyle(TaskPriority p) => switch (p) {
+    TaskPriority.urgent => ('Urgent', Colors.red),
+    TaskPriority.high   => ('High',   Colors.orange),
+    TaskPriority.medium => ('Medium', Colors.blue),
+    TaskPriority.low    => ('Low',    Colors.grey),
+  };
 
   @override
   Widget build(BuildContext context) {
+    final (priorityLabel, priorityColor) = _priorityStyle(_task.priority);
+    final isAssigned = _task.status == TaskStatus.assigned;
+    final isInProgress = _task.status == TaskStatus.inProgress;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Task Details'),
-      ),
+      appBar: AppBar(title: const Text('Task Details')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -169,51 +197,45 @@ class _TaskDetailViewState extends State<TaskDetailView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Install main electrical panel',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  Text(
+                    _task.title,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Office Building Rewiring',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    _task.projectName,
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                   const SizedBox(height: 12),
-                  Row(
-                    children: [
+                  if (_task.location != null) ...[
+                    Row(children: [
                       Icon(Icons.location_on, size: 16, color: Colors.grey[600]),
                       const SizedBox(width: 4),
-                      const Text('Floor 2, Room 201'),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text(
-                          'High Priority',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.orange,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                      Text(_task.location!),
+                    ]),
+                    const SizedBox(height: 4),
+                  ],
+                  if (_task.description.isNotEmpty) ...[
+                    Text(
+                      _task.description,
+                      style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: priorityColor.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$priorityLabel Priority',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: priorityColor,
+                        fontWeight: FontWeight.w600,
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
@@ -221,7 +243,7 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           ),
           const SizedBox(height: 16),
 
-          // Timer Card
+          // Timer
           Card(
             color: _isRunning ? Colors.green[50] : Colors.grey[50],
             child: Padding(
@@ -243,27 +265,26 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                       color: _isRunning ? Colors.green[700] : Colors.grey[700],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _toggleTimer,
-                          icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
-                          label: Text(_isRunning ? 'PAUSE' : 'START'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isRunning ? Colors.orange : Colors.green,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(0, 64),
-                            textStyle: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
+                  if (isInProgress) ...[
+                    const SizedBox(height: 24),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _toggleTimer,
+                        icon: Icon(_isRunning ? Icons.pause : Icons.play_arrow),
+                        label: Text(_isRunning ? 'PAUSE' : 'RESUME'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isRunning ? Colors.orange : Colors.green,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 64),
+                          textStyle: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -277,19 +298,14 @@ class _TaskDetailViewState extends State<TaskDetailView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.photo_camera, color: Colors.blue),
-                      SizedBox(width: 12),
-                      Text(
-                        'Work-in-Place Photos',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                  const Row(children: [
+                    Icon(Icons.photo_camera, color: Colors.blue),
+                    SizedBox(width: 12),
+                    Text(
+                      'Work-in-Place Photos',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ]),
                   const SizedBox(height: 12),
                   if (_uploadedPhotos.isEmpty)
                     Container(
@@ -299,63 +315,40 @@ class _TaskDetailViewState extends State<TaskDetailView> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.add_photo_alternate,
-                              size: 48,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No photos uploaded yet',
-                              style: TextStyle(color: Colors.grey[600]),
-                            ),
-                          ],
-                        ),
+                        child: Column(children: [
+                          Icon(Icons.add_photo_alternate, size: 48, color: Colors.grey[400]),
+                          const SizedBox(height: 8),
+                          Text('No photos yet', style: TextStyle(color: Colors.grey[600])),
+                        ]),
                       ),
                     )
                   else
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _uploadedPhotos.map((photo) {
-                        return Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[200],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey[300]!),
-                          ),
-                          child: Stack(
-                            children: [
-                              Center(
-                                child: Icon(
-                                  Icons.image,
-                                  size: 40,
-                                  color: Colors.grey[400],
-                                ),
+                      children: _uploadedPhotos.map((p) => Container(
+                        width: 100,
+                        height: 100,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey[300]!),
+                        ),
+                        child: Stack(children: [
+                          Center(child: Icon(Icons.image, size: 40, color: Colors.grey[400])),
+                          Positioned(
+                            top: 4, right: 4,
+                            child: Container(
+                              decoration: const BoxDecoration(
+                                color: Colors.green,
+                                shape: BoxShape.circle,
                               ),
-                              Positioned(
-                                top: 4,
-                                right: 4,
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  padding: const EdgeInsets.all(4),
-                                  child: const Icon(
-                                    Icons.check,
-                                    size: 16,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ),
-                            ],
+                              padding: const EdgeInsets.all(4),
+                              child: const Icon(Icons.check, size: 16, color: Colors.white),
+                            ),
                           ),
-                        );
-                      }).toList(),
+                        ]),
+                      )).toList(),
                     ),
                   const SizedBox(height: 12),
                   OutlinedButton.icon(
@@ -372,30 +365,55 @@ class _TaskDetailViewState extends State<TaskDetailView> {
           ),
           const SizedBox(height: 16),
 
-          // Action Buttons
-          ElevatedButton.icon(
-            onPressed: _requestHelp,
-            icon: const Icon(Icons.help_outline),
-            label: const Text('Request Help'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 56),
-              textStyle: const TextStyle(fontSize: 16),
+          // Context-sensitive action buttons
+          if (isAssigned)
+            ElevatedButton.icon(
+              onPressed: _saving ? null : _startTask,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.play_arrow),
+              label: Text(_saving ? 'Starting…' : 'Start Task'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 56),
+                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          ElevatedButton.icon(
-            onPressed: _completeTask,
-            icon: const Icon(Icons.check_circle),
-            label: const Text('Complete Task'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-              minimumSize: const Size(double.infinity, 56),
-              textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+
+          if (isInProgress) ...[
+            ElevatedButton.icon(
+              onPressed: _requestHelp,
+              icon: const Icon(Icons.help_outline),
+              label: const Text('Request Help'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 56),
+                textStyle: const TextStyle(fontSize: 16),
+              ),
             ),
-          ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: _saving ? null : _completeTask,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18, height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.check_circle),
+              label: Text(_saving ? 'Saving…' : 'Mark Complete'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 56),
+                textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
         ],
       ),

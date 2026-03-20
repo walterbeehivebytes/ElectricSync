@@ -1,110 +1,148 @@
 import 'package:flutter/material.dart';
+import '../../models/auth_user.dart';
+import '../../models/task.dart';
+import '../../services/task_service.dart';
 
 class QCSignoff extends StatefulWidget {
-  const QCSignoff({super.key});
+  final AuthUser currentUser;
+  const QCSignoff({super.key, required this.currentUser});
 
   @override
   State<QCSignoff> createState() => _QCSignoffState();
 }
 
 class _QCSignoffState extends State<QCSignoff> {
-  final TextEditingController _notesController = TextEditingController();
+  final _taskService = TaskService();
+  List<Task> _pendingQC = [];
+  bool _loading = true;
+  String? _error;
 
   @override
-  void dispose() {
-    _notesController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _load();
   }
 
-  void _approveTask() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 12),
-            Text('Approve Task'),
-          ],
-        ),
-        content: const Text(
-          'Are you sure you want to approve this task? '
-          'This will mark it as verified and complete.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Task approved and verified'),
-                  backgroundColor: Colors.green,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Approve'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _rejectTask() {
-    if (_notesController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please add notes explaining why the task is rejected'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final tasks = await _taskService.getTasksByTeamLead(widget.currentUser.id);
+      if (mounted) {
+        setState(() {
+          _pendingQC = tasks.where((t) => t.status == TaskStatus.verified).toList();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = 'Could not load tasks'; _loading = false; });
     }
+  }
 
-    showDialog(
+  Future<void> _approve(Task task) async {
+    try {
+      await _taskService.updateTask(task.id, {'status': 'completed'});
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${task.title} approved ✓'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Approval failed'), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _showRejectSheet(Task task) {
+    final notesController = TextEditingController();
+    showModalBottomSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.cancel, color: Colors.red),
-            SizedBox(width: 12),
-            Text('Reject Task'),
+            Text(
+              'Reject: ${task.title}',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Task will be sent back to the crew member.',
+              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: notesController,
+              maxLines: 3,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Rejection notes (required)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final notes = notesController.text.trim();
+                  if (notes.isEmpty) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please add rejection notes'),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.pop(ctx);
+                  try {
+                    await _taskService.updateTask(task.id, {
+                      'status': 'in_progress',
+                      'description': '${task.description}\n[Rejected: $notes]',
+                    });
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${task.title} sent back to crew'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      _load();
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Rejection failed'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.cancel),
+                label: const Text('Send Back to Crew'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+            ),
           ],
         ),
-        content: const Text(
-          'This will send the task back to the electrician with your notes.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Task rejected and returned to electrician'),
-                  backgroundColor: Colors.orange,
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Reject'),
-          ),
-        ],
       ),
     );
   }
@@ -114,312 +152,125 @@ class _QCSignoffState extends State<QCSignoff> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('QC Sign-off'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _load,
+            tooltip: 'Refresh',
+          ),
+        ],
       ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          // Split screen for wider layouts, stacked for narrow
-          final isSplitScreen = constraints.maxWidth > 800;
-
-          if (isSplitScreen) {
-            return Row(
-              children: [
-                // Left side: Blueprint
-                Expanded(
-                  child: _buildBlueprintSection(),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(_error!, style: const TextStyle(color: Colors.red)),
+                      const SizedBox(height: 8),
+                      TextButton(onPressed: _load, child: const Text('Retry')),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: _pendingQC.isEmpty
+                      ? ListView(
+                          children: [
+                            const SizedBox(height: 80),
+                            Center(
+                              child: Column(children: [
+                                Icon(Icons.check_circle_outline,
+                                    size: 72, color: Colors.green[300]),
+                                const SizedBox(height: 16),
+                                const Text(
+                                  'No tasks awaiting QC',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Tasks will appear here when crew marks them complete.',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ]),
+                            ),
+                          ],
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _pendingQC.length,
+                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          itemBuilder: (_, i) => _buildQCCard(_pendingQC[i]),
+                        ),
                 ),
-                // Right side: Work Photos
+    );
+  }
+
+  Widget _buildQCCard(Task task) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.pending_actions, color: Colors.teal[700]),
+                const SizedBox(width: 8),
                 Expanded(
-                  child: _buildWorkPhotosSection(),
+                  child: Text(
+                    task.title,
+                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ],
-            );
-          } else {
-            return SingleChildScrollView(
-              child: Column(
-                children: [
-                  SizedBox(height: 360, child: _buildBlueprintSection()),
-                  const Divider(height: 1),
-                  SizedBox(height: 620, child: _buildWorkPhotosSection()),
-                ],
+            ),
+            if (task.description.isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                task.description,
+                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
-            );
-          }
-        },
-      ),
-      bottomNavigationBar: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withAlpha(0.2.toInt()),
-              blurRadius: 4,
-              offset: const Offset(0, -2),
+            ],
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _showRejectSheet(task),
+                    icon: const Icon(Icons.cancel, size: 18),
+                    label: const Text('Reject'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => _approve(task),
+                    icon: const Icon(Icons.check_circle, size: 18),
+                    label: const Text('Approve'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-        child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _rejectTask,
-                  icon: const Icon(Icons.cancel),
-                  label: const Text('Reject'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.red,
-                    side: const BorderSide(color: Colors.red),
-                    minimumSize: const Size(0, 56),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _approveTask,
-                  icon: const Icon(Icons.check_circle),
-                  label: const Text('Approve'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(0, 56),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBlueprintSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[50],
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey[300]!),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.architecture, color: Colors.purple),
-                const SizedBox(width: 12),
-                const Text(
-                  'Original Blueprint',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.zoom_in),
-                  onPressed: () {},
-                  tooltip: 'Zoom in',
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: Container(
-                margin: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.image,
-                      size: 80,
-                      color: Colors.grey[400],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Blueprint Image',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Floor 2, Room 201',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[500],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWorkPhotosSection() {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.grey[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(
-                bottom: BorderSide(color: Colors.grey[300]!),
-              ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.photo_library, color: Colors.blue),
-                    SizedBox(width: 12),
-                    Text(
-                      'Work-in-Place Photos',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  color: Colors.blue[50],
-                  child: const Padding(
-                    padding: EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Icon(Icons.info_outline, color: Colors.blue, size: 20),
-                        SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Completed by Mike Johnson\n2 hours ago',
-                            style: TextStyle(fontSize: 13),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                // Mock photos
-                _buildPhotoCard('Panel installation - Front view', '1 of 3'),
-                const SizedBox(height: 12),
-                _buildPhotoCard('Panel installation - Side view', '2 of 3'),
-                const SizedBox(height: 12),
-                _buildPhotoCard('Wire terminations close-up', '3 of 3'),
-                const SizedBox(height: 24),
-
-                // Notes section
-                const Text(
-                  'QC Notes',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _notesController,
-                  decoration: InputDecoration(
-                    border: const OutlineInputBorder(),
-                    hintText: 'Add notes (required if rejecting)',
-                    filled: true,
-                    fillColor: Colors.grey[50],
-                  ),
-                  maxLines: 4,
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhotoCard(String title, String subtitle) {
-    return Card(
-      elevation: 2,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            height: 200,
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(4),
-              ),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.image,
-                size: 64,
-                color: Colors.grey[400],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey[600],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }

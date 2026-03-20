@@ -32,8 +32,8 @@ async def get_user(user_id: str, current_user: User = Depends(get_current_user))
 async def list_users_by_role(
     role: UserRole,
     current_user: User = Depends(
-        require_roles(UserRole.PROJECT_MANAGER, UserRole.SITE_MANAGER)
+        require_roles(UserRole.PROJECT_MANAGER, UserRole.SITE_MANAGER, UserRole.TEAM_LEAD)
     ),
 ):
-    """Get all users with a specific role — PM and SM only."""
+    """Get all users with a specific role — PM, SM, and TL only."""
     return get_users_by_role(role)

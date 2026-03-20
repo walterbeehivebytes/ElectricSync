@@ -29,9 +29,9 @@ class _HomeScreenState extends State<HomeScreen> {
       case UserRole.projectManager:
         return const ProjectManagerHome();
       case UserRole.siteManager:
-        return const SiteManagerHome();
+        return SiteManagerHome(currentUser: widget.authService.currentUser!);
       case UserRole.teamLead:
-        return const TeamLeadHome();
+        return TeamLeadHome(currentUser: widget.authService.currentUser!);
       case UserRole.teamMember:
         return const TeamMemberHome();
     }
@@ -70,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
           screen = const CrewDispatch();
           break;
         case UserRole.teamLead:
-          screen = const QCSignoff();
+          screen = QCSignoff(currentUser: widget.authService.currentUser!);
           break;
         case UserRole.teamMember:
           return; // TM dashboard is already task-focused

@@ -44,6 +44,14 @@ class User {
     required this.role,
   });
 
+  factory User.fromApiJson(Map<String, dynamic> json) {
+    return User(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      role: UserRole.fromString(json['role'] as String),
+    );
+  }
+
   String get roleDisplay {
     switch (role) {
       case UserRole.projectManager:

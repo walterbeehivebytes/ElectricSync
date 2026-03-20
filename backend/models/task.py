@@ -28,6 +28,7 @@ class Task(BaseModel):
     status: TaskStatus
     priority: TaskPriority
     assigned_to: Optional[str] = None
+    team_lead_id: Optional[str] = None
     created_by: str
     created_at: datetime
     due_date: Optional[datetime] = None

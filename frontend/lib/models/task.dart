@@ -26,6 +26,7 @@ class Task {
   final TaskPriority priority;
   final String? assignedTo; // Electrician ID
   final String? assignedToName;
+  final String? teamLeadId; // Team lead responsible for this task
   final DateTime createdAt;
   final DateTime? startedAt;
   final DateTime? completedAt;
@@ -46,6 +47,7 @@ class Task {
     required this.priority,
     this.assignedTo,
     this.assignedToName,
+    this.teamLeadId,
     required this.createdAt,
     this.startedAt,
     this.completedAt,
@@ -69,6 +71,7 @@ class Task {
       status: _statusFromApi(json['status'] as String),
       priority: _priorityFromApi(json['priority'] as String),
       assignedTo: json['assigned_to'] as String?,
+      teamLeadId: json['team_lead_id'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       completedAt: json['completed_at'] != null
           ? DateTime.parse(json['completed_at'] as String)
@@ -115,6 +118,7 @@ class Task {
     TaskPriority? priority,
     String? assignedTo,
     String? assignedToName,
+    String? teamLeadId,
     DateTime? createdAt,
     DateTime? startedAt,
     DateTime? completedAt,
@@ -135,6 +139,7 @@ class Task {
       priority: priority ?? this.priority,
       assignedTo: assignedTo ?? this.assignedTo,
       assignedToName: assignedToName ?? this.assignedToName,
+      teamLeadId: teamLeadId ?? this.teamLeadId,
       createdAt: createdAt ?? this.createdAt,
       startedAt: startedAt ?? this.startedAt,
       completedAt: completedAt ?? this.completedAt,

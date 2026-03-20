@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import '../../models/auth_user.dart';
 import '../../models/task.dart';
+import '../../models/user.dart';
 import '../../services/api_service.dart';
 
 class WorkOrderCreator extends StatefulWidget {
-  const WorkOrderCreator({super.key});
+  final AuthUser? currentUser;
+  const WorkOrderCreator({super.key, this.currentUser});
 
   @override
   State<WorkOrderCreator> createState() => _WorkOrderCreatorState();
@@ -138,6 +141,10 @@ class _WorkOrderCreatorState extends State<WorkOrderCreator> {
         'description': '$location: $description',
         'priority': _selectedPriority.name,
         'materials_needed': _selectedMaterialKits,
+        // TL-created tasks auto-route to their own My Tasks via the backend,
+        // but we also send team_lead_id so the frontend filter works immediately.
+        if (widget.currentUser?.role == UserRole.teamLead)
+          'team_lead_id': widget.currentUser!.id,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

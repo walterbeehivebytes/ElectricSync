@@ -77,6 +77,15 @@ class ApiService {
     return _parseResponse(response);
   }
 
+  Future<Map<String, dynamic>> patch(String path, Map<String, dynamic> body) async {
+    final response = await http.patch(
+      Uri.parse('${AppConfig.baseUrl}$path'),
+      headers: _headers,
+      body: jsonEncode(body),
+    );
+    return _parseResponse(response);
+  }
+
   Map<String, dynamic> _parseResponse(http.Response response) {
     final body = jsonDecode(response.body);
     if (response.statusCode >= 200 && response.statusCode < 300) {
