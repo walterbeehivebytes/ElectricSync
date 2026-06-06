@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/task.dart';
 import '../../models/user.dart';
 import '../../services/task_service.dart';
+import '../../theme/app_theme.dart';
 import '../blueprints/blueprint_viewer.dart';
 import '../tasks/task_detail_view.dart';
 
@@ -25,246 +26,12 @@ class _TeamMemberHomeState extends State<TeamMemberHome> {
   }
 
   Future<void> _loadTasks() async {
+    setState(() { _loading = true; _error = null; });
     try {
       final tasks = await _taskService.getMyTasks();
       if (mounted) setState(() { _tasks = tasks; _loading = false; });
-    } catch (e) {
+    } catch (_) {
       if (mounted) setState(() { _error = 'Could not load tasks'; _loading = false; });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final current = _tasks.where((t) => t.status == TaskStatus.inProgress).toList();
-    final upcoming = _tasks
-        .where((t) => t.status == TaskStatus.assigned || t.status == TaskStatus.unassigned)
-        .toList()
-      ..sort((a, b) => _priorityOrder(a.priority).compareTo(_priorityOrder(b.priority)));
-    final completed = _tasks.where((t) => t.status == TaskStatus.completed).toList();
-
-    return RefreshIndicator(
-      onRefresh: _loadTasks,
-      child: SingleChildScrollView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('My Workspace', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('What am I doing right now?', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-            const SizedBox(height: 16),
-
-            if (_loading)
-              const Center(child: CircularProgressIndicator())
-            else if (_error != null)
-              _buildError()
-            else ...[
-              // Current Task
-              if (current.isNotEmpty)
-                _buildCurrentTaskCard(current.first)
-              else
-                _buildNoCurrentTask(),
-              const SizedBox(height: 12),
-
-              // Blueprint button
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.push(context, MaterialPageRoute(
-                    builder: (context) => const BlueprintViewer(userRole: UserRole.teamMember),
-                  ));
-                },
-                icon: const Icon(Icons.map),
-                label: const Text('View Blueprint - See Task Locations'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.purple[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(16),
-                  minimumSize: const Size(double.infinity, 56),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Up Next
-              Text('Up Next (${upcoming.length})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              if (upcoming.isEmpty)
-                Text('No upcoming tasks', style: TextStyle(color: Colors.grey[500]))
-              else
-                ...upcoming.map((t) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: _buildTaskCard(t),
-                )),
-              const SizedBox(height: 24),
-
-              // Completed
-              Text('Completed (${completed.length})', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              if (completed.isEmpty)
-                Text('Nothing completed yet', style: TextStyle(color: Colors.grey[500]))
-              else
-                ...completed.map((t) => _buildCompletedTask(t)),
-              const SizedBox(height: 24),
-
-              // Stats
-              const Text('My Stats', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _buildStatCard('Tasks\nDone', '${completed.length}', Icons.check_circle, Colors.green),
-                  const SizedBox(width: 8),
-                  _buildStatCard('In\nProgress', '${current.length}', Icons.timer, Colors.blue),
-                  const SizedBox(width: 8),
-                  _buildStatCard('Up\nNext', '${upcoming.length}', Icons.assignment, Colors.orange),
-                ],
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildError() {
-    return Card(
-      color: Colors.red[50],
-      child: ListTile(
-        leading: Icon(Icons.error_outline, color: Colors.red[700]),
-        title: Text(_error!, style: TextStyle(color: Colors.red[900])),
-        subtitle: const Text('Pull down to retry'),
-      ),
-    );
-  }
-
-  Widget _buildCurrentTaskCard(Task task) {
-    return Card(
-      color: Colors.amber[50],
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.play_circle, color: Colors.amber[700], size: 28),
-                const SizedBox(width: 12),
-                const Text('Current Task', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(task.title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 4),
-            Text(task.description, style: TextStyle(fontSize: 13, color: Colors.grey[600])),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () async {
-                  final updated = await Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(builder: (_) => TaskDetailView(task: task)),
-                  );
-                  if (updated == true && mounted) _loadTasks();
-                },
-                icon: const Icon(Icons.open_in_new),
-                label: const Text('Open Task'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.amber[700],
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.all(14),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNoCurrentTask() {
-    return Card(
-      color: Colors.grey[50],
-      child: const ListTile(
-        leading: Icon(Icons.check_circle_outline, color: Colors.green),
-        title: Text('No task in progress'),
-        subtitle: Text('Pick one from Up Next below'),
-      ),
-    );
-  }
-
-  Widget _buildTaskCard(Task task) {
-    final color = _priorityColor(task.priority);
-    final label = _priorityLabel(task.priority);
-    return Card(
-      child: ListTile(
-        leading: Icon(Icons.assignment, color: Colors.blue[700]),
-        title: Text(task.title),
-        trailing: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(label, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
-        ),
-        onTap: () async {
-          final updated = await Navigator.push<bool>(
-            context,
-            MaterialPageRoute(builder: (_) => TaskDetailView(task: task)),
-          );
-          if (updated == true && mounted) _loadTasks();
-        },
-      ),
-    );
-  }
-
-  Widget _buildCompletedTask(Task task) {
-    return ListTile(
-      dense: true,
-      leading: Icon(Icons.check_circle, color: Colors.green[700], size: 20),
-      title: Text(task.title, style: const TextStyle(fontSize: 14)),
-      trailing: const Icon(Icons.chevron_right, size: 18, color: Colors.grey),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => TaskDetailView(task: task)),
-      ),
-    );
-  }
-
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          child: Column(
-            children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 4),
-              Text(value, style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: color)),
-              Text(label, style: TextStyle(fontSize: 11, color: Colors.grey[600]), textAlign: TextAlign.center),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Color _priorityColor(TaskPriority p) {
-    switch (p) {
-      case TaskPriority.urgent: return Colors.red[900]!;
-      case TaskPriority.high: return Colors.red;
-      case TaskPriority.medium: return Colors.orange;
-      case TaskPriority.low: return Colors.green;
-    }
-  }
-
-  String _priorityLabel(TaskPriority p) {
-    switch (p) {
-      case TaskPriority.urgent: return 'Urgent';
-      case TaskPriority.high: return 'High';
-      case TaskPriority.medium: return 'Medium';
-      case TaskPriority.low: return 'Low';
     }
   }
 
@@ -274,4 +41,261 @@ class _TeamMemberHomeState extends State<TeamMemberHome> {
     TaskPriority.medium => 2,
     TaskPriority.low    => 3,
   };
+
+  Color _priorityColor(TaskPriority p) => switch (p) {
+    TaskPriority.urgent => AppColors.urgent,
+    TaskPriority.high   => AppColors.high,
+    TaskPriority.medium => AppColors.medium,
+    TaskPriority.low    => AppColors.low,
+  };
+
+  String _priorityLabel(TaskPriority p) => switch (p) {
+    TaskPriority.urgent => 'Urgent',
+    TaskPriority.high   => 'High',
+    TaskPriority.medium => 'Medium',
+    TaskPriority.low    => 'Low',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final current   = _tasks.where((t) => t.status == TaskStatus.inProgress).toList();
+    final upcoming  = (_tasks
+        .where((t) => t.status == TaskStatus.assigned || t.status == TaskStatus.unassigned)
+        .toList()
+      ..sort((a, b) => _priorityOrder(a.priority).compareTo(_priorityOrder(b.priority))));
+    final completed = _tasks.where((t) => t.status == TaskStatus.completed).toList();
+
+    return RefreshIndicator(
+      color: AppColors.tm,
+      backgroundColor: AppColors.surfaceHigh,
+      onRefresh: _loadTasks,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_loading)
+              const Center(child: Padding(padding: EdgeInsets.only(top: 48), child: CircularProgressIndicator(strokeWidth: 2)))
+            else if (_error != null)
+              _buildError()
+            else ...[
+              // Current task
+              _buildCurrentSection(current),
+              const SizedBox(height: 16),
+
+              // Blueprint button
+              GhostButton(
+                label: 'View Blueprint — Task Locations',
+                icon: Icons.map_outlined,
+                fullWidth: true,
+                onPressed: () => Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => const BlueprintViewer(userRole: UserRole.teamMember),
+                )),
+              ),
+              const SizedBox(height: 24),
+
+              // Stats row
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(children: [
+                  StatCard(value: '${completed.length}', label: 'Done',      color: AppColors.tl),
+                  const SizedBox(width: 10),
+                  StatCard(value: '${current.length}',   label: 'Active',    color: AppColors.tm),
+                  const SizedBox(width: 10),
+                  StatCard(value: '${upcoming.length}',  label: 'Up Next',   color: AppColors.pm),
+                ]),
+              ),
+              const SizedBox(height: 24),
+
+              // Up next
+              SectionHeader('Up Next', count: upcoming.length, countColor: AppColors.pm),
+              if (upcoming.isEmpty)
+                const EmptyState(message: 'No upcoming tasks', icon: Icons.assignment_outlined)
+              else
+                ...upcoming.map((t) => _buildUpNextCard(t)),
+              const SizedBox(height: 8),
+
+              // Completed
+              if (completed.isNotEmpty) ...[
+                Divider(color: AppColors.border, height: 32),
+                SectionHeader('Completed', count: completed.length, countColor: AppColors.tl),
+                ...completed.map((t) => _buildCompletedRow(t)),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Sections ──────────────────────────────────────────────────────────────
+
+  Widget _buildCurrentSection(List<Task> current) {
+    if (current.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(children: [
+          const Icon(Icons.check_circle_outline, color: AppColors.tl, size: 22),
+          const SizedBox(width: 12),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('No task in progress', style: AppText.body(14, weight: FontWeight.w600)),
+            Text('Pick one from Up Next below', style: AppText.body(12, color: AppColors.textSecondary)),
+          ]),
+        ]),
+      );
+    }
+    final task = current.first;
+    return _buildActiveTaskCard(task);
+  }
+
+  Widget _buildActiveTaskCard(Task task) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.tm.withValues(alpha: 0.3)),
+        boxShadow: [
+          BoxShadow(color: AppColors.tm.withValues(alpha: 0.06), blurRadius: 16, offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header strip
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.tm.withValues(alpha: 0.08),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(11)),
+              border: Border(bottom: BorderSide(color: AppColors.tm.withValues(alpha: 0.2))),
+            ),
+            child: Row(children: [
+              Container(
+                width: 8, height: 8,
+                decoration: const BoxDecoration(color: AppColors.tm, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 8),
+              Text('NOW WORKING', style: AppText.display(11, color: AppColors.tm, letterSpacing: 2, weight: FontWeight.w700)),
+            ]),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(task.title, style: AppText.display(22, weight: FontWeight.w700)),
+                if (task.description.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(task.description, style: AppText.body(13, color: AppColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: GestureDetector(
+                    onTap: () async {
+                      final updated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => TaskDetailView(task: task)));
+                      if (updated == true && mounted) _loadTasks();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      decoration: BoxDecoration(
+                        color: AppColors.tm.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.tm.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text('Open Task', style: AppText.body(14, weight: FontWeight.w600, color: AppColors.tm)),
+                          const SizedBox(width: 6),
+                          const Icon(Icons.arrow_forward, size: 16, color: AppColors.tm),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUpNextCard(Task task) {
+    final color = _priorityColor(task.priority);
+    return AppCard(
+      accentColor: color,
+      onTap: () async {
+        final updated = await Navigator.push<bool>(context, MaterialPageRoute(builder: (_) => TaskDetailView(task: task)));
+        if (updated == true && mounted) _loadTasks();
+      },
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(task.title, style: AppText.body(14, weight: FontWeight.w600)),
+                if (task.description.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Text(task.description, style: AppText.body(12, color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+            ),
+          ),
+          StatusChip(_priorityLabel(task.priority), color: color),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompletedRow(Task task) {
+    return GestureDetector(
+      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => TaskDetailView(task: task))),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle, color: AppColors.tl, size: 16),
+            const SizedBox(width: 10),
+            Expanded(child: Text(task.title, style: AppText.body(13, color: AppColors.textSecondary))),
+            const Icon(Icons.chevron_right, size: 16, color: AppColors.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildError() {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.urgent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.urgent.withValues(alpha: 0.25)),
+      ),
+      child: Row(children: [
+        const Icon(Icons.error_outline, color: AppColors.urgent, size: 20),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(_error!, style: AppText.body(14, color: AppColors.urgent)),
+          Text('Pull down to retry', style: AppText.body(12, color: AppColors.textSecondary)),
+        ])),
+      ]),
+    );
+  }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/user.dart';
 import '../../services/auth_service.dart';
+import '../../theme/app_theme.dart';
 import '../home_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -19,7 +20,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _authService = AuthService();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
+  bool _obscureConfirm = true;
   UserRole _selectedRole = UserRole.teamMember;
 
   @override
@@ -32,219 +33,167 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Future<void> _signUp() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
-
-      final user = await _authService.signUp(
-        email: _emailController.text,
-        password: _passwordController.text,
-        name: _nameController.text,
-        role: _selectedRole,
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    final user = await _authService.signUp(
+      email: _emailController.text,
+      password: _passwordController.text,
+      name: _nameController.text,
+      role: _selectedRole,
+    );
+    setState(() => _isLoading = false);
+    if (!mounted) return;
+    if (user != null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => HomeScreen(authService: _authService)),
       );
-
-      setState(() => _isLoading = false);
-
-      if (user != null && mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => HomeScreen(authService: _authService),
-          ),
-        );
-      } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Account already exists with this email'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Account already exists with this email', style: AppText.body(14)),
+          backgroundColor: AppColors.urgent.withValues(alpha: 0.9),
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Create Account'),
+        backgroundColor: AppColors.background,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: AppColors.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text('Create Account', style: AppText.display(18, weight: FontWeight.w700)),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
           child: Form(
             key: _formKey,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Name field
+                const SizedBox(height: 8),
+                Text('Join your crew.', style: AppText.display(28, weight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text('Create your field account', style: AppText.body(14, color: AppColors.textSecondary)),
+                const SizedBox(height: 28),
+
                 TextFormField(
                   controller: _nameController,
+                  style: AppText.body(14),
                   decoration: const InputDecoration(
                     labelText: 'Full Name',
-                    prefixIcon: Icon(Icons.person),
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.person_outline, size: 18, color: AppColors.textMuted),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your name';
-                    }
-                    return null;
-                  },
+                  validator: (v) => (v == null || v.isEmpty) ? 'Enter your name' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // Email field
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
+                  style: AppText.body(14),
                   decoration: const InputDecoration(
                     labelText: 'Email',
-                    prefixIcon: Icon(Icons.email),
-                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.email_outlined, size: 18, color: AppColors.textMuted),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
-                    }
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Enter your email';
+                    if (!v.contains('@')) return 'Enter a valid email';
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // Role selection
-                DropdownButtonFormField<UserRole>(
-                  initialValue: UserRole.teamMember,
-                  decoration: const InputDecoration(
-                    labelText: 'Role',
-                    prefixIcon: Icon(Icons.work),
-                    border: OutlineInputBorder(),
+                // Role selector
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.border),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: UserRole.teamMember,
-                      child: Text('Team Member'),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<UserRole>(
+                      value: _selectedRole,
+                      dropdownColor: AppColors.surfaceHigh,
+                      style: AppText.body(14),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.textMuted, size: 20),
+                      hint: Text('Select Role', style: AppText.body(14, color: AppColors.textMuted)),
+                      items: [
+                        _roleItem(UserRole.teamMember,    'Team Member',    AppColors.tm),
+                        _roleItem(UserRole.teamLead,      'Team Lead',      AppColors.tl),
+                        _roleItem(UserRole.siteManager,   'Site Manager',   AppColors.sm),
+                        _roleItem(UserRole.projectManager,'Project Manager',AppColors.pm),
+                      ],
+                      onChanged: (v) { if (v != null) setState(() => _selectedRole = v); },
                     ),
-                    DropdownMenuItem(
-                      value: UserRole.teamLead,
-                      child: Text('Team Lead'),
-                    ),
-                    DropdownMenuItem(
-                      value: UserRole.siteManager,
-                      child: Text('Site Manager'),
-                    ),
-                    DropdownMenuItem(
-                      value: UserRole.projectManager,
-                      child: Text('Project Manager'),
-                    ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) {
-                      setState(() => _selectedRole = value);
-                    }
-                  },
+                  ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // Password field
                 TextFormField(
                   controller: _passwordController,
                   obscureText: _obscurePassword,
+                  style: AppText.body(14),
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: const Icon(Icons.lock),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline, size: 18, color: AppColors.textMuted),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(() => _obscurePassword = !_obscurePassword);
-                      },
+                      icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: AppColors.textMuted),
+                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Enter a password';
+                    if (v.length < 6) return 'At least 6 characters';
                     return null;
                   },
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
-                // Confirm password field
                 TextFormField(
                   controller: _confirmPasswordController,
-                  obscureText: _obscureConfirmPassword,
+                  obscureText: _obscureConfirm,
+                  style: AppText.body(14),
                   decoration: InputDecoration(
                     labelText: 'Confirm Password',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    border: const OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.lock_outline, size: 18, color: AppColors.textMuted),
                     suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureConfirmPassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
-                      onPressed: () {
-                        setState(
-                            () => _obscureConfirmPassword = !_obscureConfirmPassword);
-                      },
+                      icon: Icon(_obscureConfirm ? Icons.visibility_outlined : Icons.visibility_off_outlined, size: 18, color: AppColors.textMuted),
+                      onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please confirm your password';
-                    }
-                    if (value != _passwordController.text) {
-                      return 'Passwords do not match';
-                    }
+                  validator: (v) {
+                    if (v == null || v.isEmpty) return 'Confirm your password';
+                    if (v != _passwordController.text) return 'Passwords do not match';
                     return null;
                   },
                 ),
                 const SizedBox(height: 32),
 
-                // Sign up button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _signUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.amber[700],
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size(double.infinity, 56),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                          ),
-                        )
-                      : const Text(
-                          'Create Account',
-                          style: TextStyle(fontSize: 16),
-                        ),
+                PrimaryButton(
+                  label: 'Create Account',
+                  color: AppColors.pm,
+                  loading: _isLoading,
+                  fullWidth: true,
+                  onPressed: _signUp,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
 
-                // Already have account
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text('Already have an account? '),
+                    Text('Already have an account? ', style: AppText.body(13, color: AppColors.textSecondary)),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
-                      child: const Text('Sign In'),
+                      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: const Size(40, 28)),
+                      child: Text('Sign In', style: AppText.body(13, color: AppColors.pm, weight: FontWeight.w700)),
                     ),
                   ],
                 ),
@@ -252,6 +201,19 @@ class _SignUpScreenState extends State<SignUpScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  DropdownMenuItem<UserRole> _roleItem(UserRole role, String label, Color dot) {
+    return DropdownMenuItem(
+      value: role,
+      child: Row(
+        children: [
+          Container(width: 7, height: 7, decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+          const SizedBox(width: 10),
+          Text(label, style: AppText.body(14)),
+        ],
       ),
     );
   }
