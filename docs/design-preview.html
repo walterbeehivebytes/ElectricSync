@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ElectricSync — Design Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ─── Reset & Base ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    /* New dark palette */
+    --bg:          #0F1117;
+    --surface:     #1C1F26;
+    --surface-hi:  #252932;
+    --border:      #2E3340;
+
+    /* Role accents */
+    --pm:   #FFAB00;
+    --sm:   #4A9FFF;
+    --tl:   #34D058;
+    --tm:   #00C8E8;
+
+    /* Semantic */
+    --urgent: #FF4444;
+    --high:   #FF8C00;
+    --medium: #4A9FFF;
+    --low:    #6B7280;
+
+    /* Text */
+    --t1: #F0F2F5;
+    --t2: #8B90A0;
+    --t3: #4B5063;
+
+    /* Old palette (for "before" comparison) */
+    --old-amber: #F9A825;
+    --old-bg: #FFFFFF;
+    --old-surface: #FFFFFF;
+    --old-text: #212121;
+    --old-text2: #757575;
+  }
+
+  body {
+    background: #080B10;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--t1);
+    min-height: 100vh;
+    padding: 40px 24px 80px;
+  }
+
+  /* ─── Page Header ───────────────────────────────────────────── */
+  .page-header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+  .page-header h1 {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 48px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--pm), #FF6B00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .page-header p {
+    color: var(--t2);
+    font-size: 15px;
+    margin-top: 8px;
+  }
+
+  /* ─── Tab Switcher ──────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-bottom: 48px;
+    flex-wrap: wrap;
+  }
+  .tab-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--t2);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 20px;
+    border-radius: 100px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .tab-btn.active, .tab-btn:hover {
+    background: var(--pm);
+    color: #000;
+    border-color: var(--pm);
+    font-weight: 600;
+  }
+  .tab-btn[data-role="sm"].active  { background: var(--sm); border-color: var(--sm); color: #fff; }
+  .tab-btn[data-role="tl"].active  { background: var(--tl); border-color: var(--tl); color: #000; }
+  .tab-btn[data-role="tm"].active  { background: var(--tm); border-color: var(--tm); color: #000; }
+  .tab-btn[data-role="login"].active { background: var(--surface-hi); border-color: var(--border); color: var(--t1); }
+
+  /* ─── Comparison layout ─────────────────────────────────────── */
+  .comparison {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 920px;
+    margin: 0 auto;
+  }
+  @media (max-width: 700px) {
+    .comparison { grid-template-columns: 1fr; }
+  }
+  .col-label {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    color: var(--t2);
+  }
+  .col-label.new { color: var(--pm); }
+
+  /* ─── Phone Frame ───────────────────────────────────────────── */
+  .phone {
+    width: 100%;
+    max-width: 375px;
+    margin: 0 auto;
+    border-radius: 44px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+  }
+  .phone.old-phone {
+    border: 2px solid #E0E0E0;
+    background: #fff;
+  }
+  .phone.new-phone {
+    border: 1.5px solid var(--border);
+    background: var(--bg);
+    box-shadow: 0 32px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,171,0,0.1);
+  }
+
+  /* Status bar notch */
+  .status-bar {
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .old-phone .status-bar { background: #fff; color: #000; }
+  .new-phone .status-bar { background: var(--bg); color: var(--t2); }
+  .status-icons { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+
+  /* ─── OLD PHONE STYLES ──────────────────────────────────────── */
+  .old { font-family: -apple-system, 'Roboto', sans-serif; }
+
+  .old-appbar {
+    background: #F9A825;
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .old-appbar-icons { display: flex; gap: 8px; }
+  .old-icon-btn {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .old-body { padding: 16px; background: #FAFAFA; min-height: 480px; }
+
+  .old-section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #212121;
+    margin-bottom: 12px;
+  }
+  .old-subtitle { font-size: 14px; color: #757575; margin-bottom: 20px; margin-top: -8px; }
+
+  .old-btn-row { display: flex; gap: 12px; margin-bottom: 20px; }
+  .old-btn {
+    flex: 1;
+    padding: 14px 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: white;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer;
+  }
+  .old-btn.amber { background: #F9A825; }
+  .old-btn.purple { background: #7B1FA2; }
+  .old-btn.blue { background: #1565C0; }
+
+  .old-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 20px; }
+  .old-stat-card {
+    background: white;
+    border-radius: 8px;
+    padding: 10px 4px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .old-stat-icon { font-size: 18px; margin-bottom: 2px; }
+  .old-stat-value { font-size: 18px; font-weight: 700; }
+  .old-stat-label { font-size: 10px; color: #9E9E9E; }
+
+  .old-card {
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    padding: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .old-avatar {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .old-card-title { font-size: 14px; font-weight: 600; color: #212121; margin-bottom: 6px; }
+  .old-card-sub { font-size: 11px; color: #9E9E9E; margin-top: 2px; }
+  .old-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .old-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  .old-bottom-nav {
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    background: white;
+    border-top: 1px solid #E0E0E0;
+    padding: 8px 0 16px;
+  }
+  .old-nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    color: #9E9E9E;
+    padding: 4px;
+  }
+  .old-nav-item.active { color: #F9A825; }
+  .old-nav-icon { font-size: 22px; }
+
+  /* ─── NEW PHONE STYLES ──────────────────────────────────────── */
+  .new { font-family: 'DM Sans', sans-serif; }
+
+  .new-appbar {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .new-appbar-left { display: flex; align-items: center; gap: 10px; }
+  .role-badge {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+  }
+  .new-appbar-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--t1);
+  }
+  .new-appbar-icons { display: flex; gap: 6px; }
+  .new-icon-btn {
+    width: 34px; height: 34px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: var(--t2);
+    cursor: pointer;
+  }
+
+  .new-body { padding: 18px 16px 16px; min-height: 480px; background: var(--bg); }
+
+  .new-section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--t2);
+    margin-bottom: 12px;
+  }
+  .new-screen-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--t1);
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+  }
+  .new-screen-sub {
+    font-size: 13px;
+    color: var(--t2);
+    margin-bottom: 18px;
+  }
+
+  .new-btn-row { display: flex; gap: 10px; margin-bottom: 22px; }
+  .new-btn {
+    flex: 1;
+    padding: 13px 8px;
+    border: none;
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer;
+    letter-spacing: 0.2px;
+  }
+  .new-btn.primary { color: #000; }
+  .new-btn.secondary { background: var(--surface); color: var(--t1); border: 1px solid var(--border); }
+
+  /* Stat cards — horizontal scroll row */
+  .new-stat-row {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    margin-bottom: 24px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .new-stat-card {
+    flex-shrink: 0;
+    width: 88px;
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 14px 12px;
+    border-left: 3px solid;
+  }
+  .new-stat-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 36px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+  .new-stat-label {
+    font-size: 11px;
+    color: var(--t2);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  /* Task cards */
+  .new-task-card {
+    background: var(--surface);
+    border-radius: 10px;
+    border-left: 3px solid;
+    margin-bottom: 8px;
+    padding: 13px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .new-task-info { flex: 1; min-width: 0; }
+  .new-task-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--t1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 3px;
+  }
+  .new-task-sub {
+    font-size: 12px;
+    color: var(--t2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .status-chip {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(139,144,160,0.15);
+    color: var(--t2);
+    white-space: nowrap;
+  }
+
+  /* Section header with count badge */
+  .new-section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .new-count-badge {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+  }
+
+  /* Floating bottom nav */
+  .new-bottom-nav-wrap {
+    padding: 0 16px 16px;
+    background: var(--bg);
+  }
+  .new-bottom-nav {
+    background: var(--surface-hi);
+    border: 1px solid var(--border);
+    border-radius: 32px;
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    height: 56px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .new-nav-item {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    color: var(--t3);
+    border-radius: 24px;
+    padding: 6px 0;
+    transition: all 0.2s;
+    font-family: 'Barlow Condensed', sans-serif;
+    text-transform: uppercase;
+  }
+  .new-nav-item.active {
+    background: rgba(255,171,0,0.12);
+    color: var(--pm);
+  }
+  .new-nav-icon { font-size: 18px; }
+
+  /* ─── Empty state ───────────────────────────────────────────── */
+  .new-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 0;
+    gap: 10px;
+  }
+  .new-empty-icon {
+    width: 52px; height: 52px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    color: var(--t3);
+  }
+  .new-empty-text { font-size: 13px; color: var(--t2); }
+
+  /* ─── Login / Splash Screens ────────────────────────────────── */
+  /* OLD login */
+  .old-login-body {
+    background: #fff;
+    padding: 32px 24px;
+    min-height: 560px;
+    display: flex;
+    flex-direction: column;
+  }
+  .old-logo-circle {
+    width: 80px; height: 80px;
+    background: rgba(249,168,37,0.1);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 44px;
+    margin: 0 auto 20px;
+  }
+  .old-login-title { font-size: 28px; font-weight: 800; color: #1E2532; text-align: center; margin-bottom: 6px; }
+  .old-login-sub { font-size: 15px; color: #64748B; text-align: center; margin-bottom: 36px; }
+  .old-input {
+    border: 1px solid #CBD5E1;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 14px;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+    color: #475569;
+  }
+  .old-input-icon { color: #94A3B8; font-size: 16px; }
+  .old-login-btn {
+    background: #F9A825;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    margin-top: 8px;
+    cursor: pointer;
+  }
+  .old-demo-box {
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    padding: 16px;
+    margin-top: 20px;
+  }
+  .old-demo-title { font-size: 13px; font-weight: 700; color: #1E293B; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .old-demo-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; color: #475569; }
+  .old-demo-role { font-weight: 600; }
+
+  /* NEW splash */
+  .new-splash {
+    background: var(--bg);
+    min-height: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .splash-geo-1 {
+    position: absolute;
+    right: -60px; top: -60px;
+    width: 220px; height: 220px;
+    background: rgba(255,171,0,0.06);
+    border-radius: 40px;
+    transform: rotate(20deg);
+  }
+  .splash-geo-2 {
+    position: absolute;
+    left: -50px; bottom: -50px;
+    width: 180px; height: 180px;
+    background: rgba(255,171,0,0.04);
+    border-radius: 30px;
+    transform: rotate(-15deg);
+  }
+  .splash-geo-3 {
+    position: absolute;
+    left: 30px; top: 80px;
+    width: 3px; height: 80px;
+    background: rgba(255,171,0,0.2);
+  }
+  .splash-content {
+    text-align: center;
+    position: relative;
+    z-index: 2;
+  }
+  .splash-logo-box {
+    width: 80px; height: 80px;
+    border: 2px solid var(--pm);
+    border-radius: 20px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 42px;
+    margin: 0 auto 28px;
+    background: rgba(255,171,0,0.06);
+    color: var(--pm);
+  }
+  .splash-title-electric {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 42px;
+    font-weight: 900;
+    letter-spacing: 4px;
+    color: var(--t1);
+    line-height: 1;
+  }
+  .splash-title-sync {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 42px;
+    font-weight: 300;
+    letter-spacing: 4px;
+    color: var(--pm);
+    line-height: 1;
+    margin-bottom: 14px;
+  }
+  .splash-sub {
+    font-size: 12px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--t3);
+    margin-bottom: 48px;
+  }
+  .splash-loader {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+  }
+  .splash-dot {
+    width: 6px; height: 6px;
+    background: var(--pm);
+    border-radius: 50%;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  .splash-dot:nth-child(2) { animation-delay: 0.2s; background: rgba(255,171,0,0.6); }
+  .splash-dot:nth-child(3) { animation-delay: 0.4s; background: rgba(255,171,0,0.3); }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.6; }
+  }
+
+  /* NEW login */
+  .new-login-body {
+    background: var(--bg);
+    min-height: 600px;
+    padding: 0;
+    position: relative;
+    overflow: hidden;
+  }
+  .new-login-geo {
+    position: absolute;
+    right: -40px; top: -40px;
+    width: 180px; height: 180px;
+    background: rgba(255,171,0,0.05);
+    border-radius: 32px;
+    transform: rotate(20deg);
+  }
+  .new-login-inner {
+    padding: 32px 24px;
+    position: relative;
+    z-index: 2;
+  }
+  .new-login-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .new-login-bolt {
+    width: 44px; height: 44px;
+    border: 1.5px solid var(--pm);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    color: var(--pm);
+    background: rgba(255,171,0,0.06);
+  }
+  .new-login-wordmark {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--t1);
+  }
+  .new-login-wordmark span { color: var(--pm); font-weight: 300; }
+  .new-login-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 34px;
+    font-weight: 700;
+    color: var(--t1);
+    margin-bottom: 6px;
+    letter-spacing: 0.5px;
+  }
+  .new-login-sub { font-size: 14px; color: var(--t2); margin-bottom: 32px; }
+  .new-input {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 13px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--t1);
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+    transition: border-color 0.2s;
+  }
+  .new-input.focused { border-color: var(--pm); }
+  .new-input-icon { color: var(--t3); font-size: 15px; }
+  .new-input-text { color: var(--t2); }
+  .new-login-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--pm);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 6px;
+    margin-bottom: 24px;
+    letter-spacing: 0.3px;
+  }
+  .new-demo-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 6px;
+  }
+  .new-demo-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .new-demo-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--t2);
+  }
+  .new-demo-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .role-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .new-demo-role { font-size: 13px; font-weight: 600; color: var(--t1); flex: 1; }
+  .new-demo-email { font-size: 12px; color: var(--t3); font-family: 'DM Mono', monospace; }
+
+  /* ─── TM view specifics ─────────────────────────────────────── */
+  .current-task-card {
+    background: var(--surface);
+    border: 1px solid rgba(0,200,232,0.25);
+    border-left: 3px solid var(--tm);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .current-task-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--tm);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .current-task-label::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: var(--tm);
+    border-radius: 50%;
+    animation: blink 1.5s ease-in-out infinite;
+  }
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .current-task-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--t1);
+    margin-bottom: 6px;
+  }
+  .current-task-sub { font-size: 13px; color: var(--t2); margin-bottom: 14px; }
+  .timer-display {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--tm);
+    letter-spacing: 3px;
+    text-align: center;
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 10px;
+    margin-bottom: 12px;
+  }
+  .open-task-btn {
+    width: 100%;
+    padding: 13px;
+    background: rgba(0,200,232,0.12);
+    border: 1px solid rgba(0,200,232,0.3);
+    border-radius: 10px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--tm);
+    cursor: pointer;
+    text-align: center;
+  }
+
+  /* ─── Assign Sheet modal preview ────────────────────────────── */
+  .assign-sheet {
+    background: var(--surface-hi);
+    border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0;
+    padding: 8px 0 0;
+    margin-top: -1px;
+  }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin: 0 auto 16px;
+  }
+  .sheet-body { padding: 0 16px 16px; }
+  .sheet-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--t1);
+    margin-bottom: 16px;
+  }
+  .sheet-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--t2);
+    margin-bottom: 8px;
+  }
+  .priority-chips { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  .p-chip {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 8px;
+    border: 1px solid;
+    cursor: pointer;
+  }
+  .member-list { margin-bottom: 16px; }
+  .member-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 6px;
+    cursor: pointer;
+  }
+  .member-row.selected { background: rgba(52,208,88,0.1); border: 1px solid rgba(52,208,88,0.3); }
+  .member-row:not(.selected) { background: var(--surface); border: 1px solid var(--border); }
+  .member-avatar {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: 'Barlow Condensed', sans-serif;
+  }
+  .member-name { font-size: 14px; font-weight: 500; color: var(--t1); flex: 1; }
+  .member-sub { font-size: 11px; color: var(--t2); }
+  .assign-cta {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #000;
+    cursor: pointer;
+  }
+
+  /* ─── Scene label ───────────────────────────────────────────── */
+  .scene-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+
+  /* ─── Divider ───────────────────────────────────────────────── */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* ─── Scrollable body with hidden scrollbar ─────────────────── */
+  .phone-body-scroll {
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .phone-body-scroll::-webkit-scrollbar { display: none; }
+
+  /* ─── Screen View sections ──────────────────────────────────── */
+  .screen-section { display: none; }
+  .screen-section.active { display: block; }
+
+  /* ─── SM section label ──────────────────────────────────────── */
+  .unassigned-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .alert-dot {
+    width: 8px; height: 8px;
+    background: var(--urgent);
+    border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>ELECTRICSYNC — REDESIGN</h1>
+  <p>Dark Industrial Precision · Role-Coded Accents · Barlow Condensed + DM Sans</p>
+</div>
+
+<!-- Tab switcher -->
+<div class="tabs">
+  <button class="tab-btn active" data-role="pm" onclick="showScreen('pm', this)">PM Dashboard</button>
+  <button class="tab-btn" data-role="sm" onclick="showScreen('sm', this)">Site Manager</button>
+  <button class="tab-btn" data-role="tl" onclick="showScreen('tl', this)">Team Lead</button>
+  <button class="tab-btn" data-role="tm" onclick="showScreen('tm', this)">Team Member</button>
+  <button class="tab-btn" data-role="login" onclick="showScreen('login', this)">Login / Splash</button>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!--  PM SCREEN                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="screen-pm" class="screen-section active">
+  <div class="comparison">
+    <!-- BEFORE -->
+    <div>
+      <div class="col-label">CURRENT</div>
+      <div class="phone old-phone">
+        <div class="status-bar old"><span>9:41</span><div class="status-icons">▶ WiFi 🔋</div></div>
+        <div class="old-appbar" style="background:#F9A825">
+          <span>Portfolio Dashboard</span>
+          <div class="old-appbar-icons">
+            <div class="old-icon-btn">🔔</div>
+            <div class="old-icon-btn">👤</div>
+          </div>
+        </div>
+        <div class="old-body">
+          <div class="old-btn-row">
+            <button class="old-btn purple">🏗 Blueprints</button>
+            <button class="old-btn amber">✚ New Task</button>
+          </div>
+          <div class="old-section-title">Portfolio Health</div>
+          <div class="old-stat-grid" style="margin-bottom:20px">
+            <div class="old-stat-card">
+              <div class="old-stat-icon" style="color:#7B1FA2">📁</div>
+              <div class="old-stat-value" style="color:#7B1FA2">2</div>
+              <div class="old-stat-label">Active</div>
+            </div>
+            <div class="old-stat-card">
+              <div class="old-stat-icon" style="color:#1565C0">📝</div>
+              <div class="old-stat-value" style="color:#1565C0">1</div>
+              <div class="old-stat-label">Planning</div>
+            </div>
+            <div class="old-stat-card">
+              <div class="old-stat-icon" style="color:#E65100">⏸</div>
+              <div class="old-stat-value" style="color:#E65100">0</div>
+              <div class="old-stat-label">On Hold</div>
+            </div>
+            <div class="old-stat-card">
+              <div class="old-stat-icon" style="color:#2E7D32">✓</div>
+              <div class="old-stat-value" style="color:#2E7D32">0</div>
+              <div class="old-stat-label">Done</div>
+            </div>
+          </div>
+          <div class="old-section-title">Active Projects</div>
+          <div class="old-card">
+            <div class="old-avatar" style="background:rgba(76,175,80,0.15)">🏢</div>
+            <div style="flex:1">
+              <div class="old-card-title">Office Building Rewiring</div>
+              <div class="old-badges">
+                <span class="old-badge" style="background:rgba(76,175,80,0.15);color:#2E7D32">In Progress</span>
+                <span style="font-size:11px;color:#9E9E9E">Acme Corp</span>
+              </div>
+              <div class="old-card-sub">123 Main St, Chicago</div>
+            </div>
+            <span style="color:#BDBDBD;margin-top:2px">›</span>
+          </div>
+          <div class="old-card">
+            <div class="old-avatar" style="background:rgba(33,150,243,0.15)">🏭</div>
+            <div style="flex:1">
+              <div class="old-card-title">Warehouse Lighting Upgrade</div>
+              <div class="old-badges">
+                <span class="old-badge" style="background:rgba(33,150,243,0.15);color:#1565C0">Planning</span>
+              </div>
+              <div class="old-card-sub">555 Industrial Pkwy</div>
+            </div>
+            <span style="color:#BDBDBD;margin-top:2px">›</span>
+          </div>
+          <div class="old-section-title" style="margin-top:16px">All Tasks <span style="background:#FFF8E1;color:#F57F17;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;margin-left:4px">9</span></div>
+          <div class="old-card">
+            <div class="old-avatar" style="background:rgba(33,150,243,0.15)">📋</div>
+            <div style="flex:1">
+              <div class="old-card-title">Install main electrical panel</div>
+              <div class="old-badges">
+                <span class="old-badge" style="background:rgba(33,150,243,0.15);color:#1565C0">In Progress</span>
+                <span class="old-badge" style="background:rgba(230,81,0,0.15);color:#E65100">HIGH</span>
+              </div>
+              <div class="old-card-sub" style="margin-top:4px">Install 400A main electrical panel on g…</div>
+            </div>
+          </div>
+          <div class="old-card">
+            <div class="old-avatar" style="background:rgba(156,39,176,0.15)">📋</div>
+            <div style="flex:1">
+              <div class="old-card-title">Install generator transfer switch</div>
+              <div class="old-badges">
+                <span class="old-badge" style="background:rgba(0,137,123,0.15);color:#00695C">Verified</span>
+                <span class="old-badge" style="background:rgba(244,67,54,0.15);color:#C62828">URGENT</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="old-bottom-nav">
+          <div class="old-nav-item active"><div class="old-nav-icon">⊞</div>Dashboard</div>
+          <div class="old-nav-item"><div class="old-nav-icon">💬</div>Messages</div>
+          <div class="old-nav-item"><div class="old-nav-icon">✓</div>Tasks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div>
+      <div class="col-label new">REDESIGNED</div>
+      <div class="phone new-phone">
+        <div class="status-bar" style="background:var(--bg)"><span style="font-family:'Barlow Condensed';font-weight:600;font-size:13px">9:41</span><div class="status-icons" style="color:var(--t2)">▶ WiFi 🔋</div></div>
+        <!-- AppBar -->
+        <div class="new-appbar">
+          <div class="new-appbar-left">
+            <span class="role-badge" style="background:rgba(255,171,0,0.12);border:1px solid rgba(255,171,0,0.3);color:var(--pm)">PM</span>
+            <span class="new-appbar-title">Portfolio</span>
+          </div>
+          <div class="new-appbar-icons">
+            <div class="new-icon-btn">🔔</div>
+            <div class="new-icon-btn">👤</div>
+          </div>
+        </div>
+        <!-- Body -->
+        <div class="new-body phone-body-scroll" style="max-height:500px">
+          <!-- Quick actions -->
+          <div class="new-btn-row">
+            <button class="new-btn secondary" style="flex:1">🏗 Blueprints</button>
+            <button class="new-btn primary" style="flex:1;background:var(--pm)">✚ New Task</button>
+          </div>
+
+          <!-- Stats row -->
+          <div class="new-section-title">Portfolio Health</div>
+          <div class="new-stat-row">
+            <div class="new-stat-card" style="border-left-color:var(--pm)">
+              <div class="new-stat-value" style="color:var(--pm)">2</div>
+              <div class="new-stat-label">Active</div>
+            </div>
+            <div class="new-stat-card" style="border-left-color:var(--sm)">
+              <div class="new-stat-value" style="color:var(--sm)">1</div>
+              <div class="new-stat-label">Planning</div>
+            </div>
+            <div class="new-stat-card" style="border-left-color:var(--high)">
+              <div class="new-stat-value" style="color:var(--high)">0</div>
+              <div class="new-stat-label">On Hold</div>
+            </div>
+            <div class="new-stat-card" style="border-left-color:var(--tl)">
+              <div class="new-stat-value" style="color:var(--tl)">0</div>
+              <div class="new-stat-label">Done</div>
+            </div>
+          </div>
+
+          <!-- Projects -->
+          <div class="new-section-header">
+            <div class="new-section-title" style="margin-bottom:0">Active Projects</div>
+          </div>
+
+          <div class="new-task-card" style="border-left-color:var(--tl);margin-bottom:8px;flex-direction:column;align-items:flex-start;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+              <span style="font-weight:600;font-size:14px;color:var(--t1)">Office Building Rewiring</span>
+              <span class="status-chip" style="color:var(--tl);background:rgba(52,208,88,0.1)">ACTIVE</span>
+            </div>
+            <div style="font-size:12px;color:var(--t2)">Acme Corp · 123 Main St</div>
+          </div>
+
+          <div class="new-task-card" style="border-left-color:var(--sm);margin-bottom:8px;flex-direction:column;align-items:flex-start;gap:8px">
+            <div style="display:flex;align-items:center;justify-content:space-between;width:100%">
+              <span style="font-weight:600;font-size:14px;color:var(--t1)">Warehouse Lighting</span>
+              <span class="status-chip" style="color:var(--sm);background:rgba(74,159,255,0.1)">PLANNING</span>
+            </div>
+            <div style="font-size:12px;color:var(--t2)">555 Industrial Pkwy</div>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- All Tasks -->
+          <div class="new-section-header">
+            <div class="new-section-title" style="margin-bottom:0">All Tasks</div>
+            <span class="new-count-badge" style="background:rgba(255,171,0,0.12);color:var(--pm)">9</span>
+          </div>
+
+          <div class="new-task-card" style="border-left-color:var(--high)">
+            <div class="new-task-info">
+              <div class="new-task-title">Install main electrical panel</div>
+              <div class="new-task-sub">Install 400A main panel on ground floor</div>
+            </div>
+            <span class="status-chip">IN PROG</span>
+          </div>
+          <div class="new-task-card" style="border-left-color:var(--urgent)">
+            <div class="new-task-info">
+              <div class="new-task-title">Install generator transfer switch</div>
+              <div class="new-task-sub">Auto transfer switch for emergency gen</div>
+            </div>
+            <span class="status-chip" style="color:var(--tl);background:rgba(52,208,88,0.1)">QC REVIEW</span>
+          </div>
+          <div class="new-task-card" style="border-left-color:var(--medium)">
+            <div class="new-task-info">
+              <div class="new-task-title">Run conduit for floors 2–3</div>
+              <div class="new-task-sub">EMT conduit runs 2nd and 3rd floors</div>
+            </div>
+            <span class="status-chip">PENDING</span>
+          </div>
+
+          <div style="height:16px"></div>
+        </div>
+        <!-- Floating bottom nav -->
+        <div class="new-bottom-nav-wrap">
+          <div class="new-bottom-nav">
+            <div class="new-nav-item active" style="color:var(--pm)">
+              <div class="new-nav-icon">⊞</div>
+              <span>DASH</span>
+            </div>
+            <div class="new-nav-item">
+              <div class="new-nav-icon">💬</div>
+              <span>MSGS</span>
+            </div>
+            <div class="new-nav-item">
+              <div class="new-nav-icon">✓</div>
+              <span>TASKS</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!--  SM SCREEN                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="screen-sm" class="screen-section">
+  <div class="comparison">
+    <!-- BEFORE -->
+    <div>
+      <div class="col-label">CURRENT</div>
+      <div class="phone old-phone">
+        <div class="status-bar old"><span>9:41</span><div class="status-icons">▶ WiFi 🔋</div></div>
+        <div class="old-appbar" style="background:#F9A825">
+          <span>Site Operations</span>
+          <div class="old-appbar-icons"><div class="old-icon-btn">🔔</div><div class="old-icon-btn">👤</div></div>
+        </div>
+        <div class="old-body">
+          <div class="old-btn-row">
+            <button class="old-btn amber">✚ Create Work Order</button>
+            <button class="old-btn blue">👥 AI Dispatch</button>
+          </div>
+          <button class="old-btn purple" style="width:100%;margin-bottom:20px">🏗 View Blueprints - Add Task Pins</button>
+          <div class="old-section-title">Needs Team Lead <span style="background:#FFEBEE;color:#C62828;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;margin-left:4px">3</span></div>
+          <div class="old-card" style="flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:14px;font-weight:600;color:#212121">Run conduit for floors 2–3</span>
+              <span class="old-badge" style="background:rgba(33,150,243,0.15);color:#1565C0">Medium</span>
+            </div>
+            <div style="font-size:12px;color:#757575">Install EMT conduit runs for 2nd and 3rd f…</div>
+            <button style="width:100%;padding:10px;background:white;border:1px solid #F9A825;border-radius:8px;color:#F57F17;font-size:13px;font-weight:600;cursor:pointer">👤 Assign to Team Lead</button>
+          </div>
+          <div class="old-card" style="flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span style="font-size:14px;font-weight:600;color:#212121">Test emergency power system</span>
+              <span class="old-badge" style="background:rgba(230,81,0,0.15);color:#E65100">High</span>
+            </div>
+            <button style="width:100%;padding:10px;background:white;border:1px solid #F9A825;border-radius:8px;color:#F57F17;font-size:13px;font-weight:600;cursor:pointer">👤 Assign to Team Lead</button>
+          </div>
+          <div class="old-section-title" style="margin-top:16px">Assigned to Team Leads <span style="background:#E3F2FD;color:#1565C0;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;margin-left:4px">6</span></div>
+          <div class="old-card">
+            <div class="old-avatar" style="background:rgba(33,150,243,0.15)">👤</div>
+            <div style="flex:1">
+              <div class="old-card-title">Install main electrical panel</div>
+              <div style="font-size:12px;color:#757575">TL: Carmen Ortiz</div>
+            </div>
+            <div style="text-align:right">
+              <span class="old-badge" style="background:rgba(33,150,243,0.15);color:#1565C0;display:block;margin-bottom:2px">In Progress</span>
+              <span class="old-badge" style="background:rgba(230,81,0,0.15);color:#E65100">High</span>
+            </div>
+          </div>
+        </div>
+        <div class="old-bottom-nav">
+          <div class="old-nav-item active"><div class="old-nav-icon">⊞</div>Dashboard</div>
+          <div class="old-nav-item"><div class="old-nav-icon">💬</div>Messages</div>
+          <div class="old-nav-item"><div class="old-nav-icon">✓</div>Tasks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div>
+      <div class="col-label new">REDESIGNED</div>
+      <div class="phone new-phone">
+        <div class="status-bar" style="background:var(--bg)"><span style="font-family:'Barlow Condensed';font-weight:600;font-size:13px">9:41</span><div class="status-icons" style="color:var(--t2)">▶ WiFi 🔋</div></div>
+        <div class="new-appbar">
+          <div class="new-appbar-left">
+            <span class="role-badge" style="background:rgba(74,159,255,0.12);border:1px solid rgba(74,159,255,0.3);color:var(--sm)">SM</span>
+            <span class="new-appbar-title">Site Operations</span>
+          </div>
+          <div class="new-appbar-icons">
+            <div class="new-icon-btn">🔔</div>
+            <div class="new-icon-btn">👤</div>
+          </div>
+        </div>
+        <div class="new-body phone-body-scroll" style="max-height:500px">
+          <div class="new-btn-row">
+            <button class="new-btn secondary">✚ Work Order</button>
+            <button class="new-btn primary" style="background:var(--sm);color:#fff">👥 Dispatch</button>
+          </div>
+          <button class="new-btn secondary" style="width:100%;margin-bottom:20px">🏗 Blueprints</button>
+
+          <!-- Needs TL section -->
+          <div class="new-section-header">
+            <div class="unassigned-header" style="margin-bottom:0">
+              <div class="alert-dot"></div>
+              <div class="new-section-title" style="margin-bottom:0;color:var(--urgent)">Needs Team Lead</div>
+            </div>
+            <span class="new-count-badge" style="background:rgba(255,68,68,0.12);color:var(--urgent)">3</span>
+          </div>
+
+          <!-- Unassigned task card with assign action inline -->
+          <div style="background:var(--surface);border-radius:10px;border-left:3px solid var(--urgent);margin-bottom:8px;padding:13px 14px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:14px;font-weight:600;color:var(--t1);flex:1">Run conduit for floors 2–3</span>
+              <span class="status-chip" style="background:rgba(74,159,255,0.1);color:var(--medium)">MEDIUM</span>
+            </div>
+            <div style="font-size:12px;color:var(--t2);margin-bottom:10px">Install EMT conduit runs, 2nd &amp; 3rd floors</div>
+            <button style="width:100%;padding:9px;background:rgba(255,171,0,0.08);border:1px solid rgba(255,171,0,0.3);border-radius:8px;font-family:'DM Sans';font-size:13px;font-weight:600;color:var(--pm);cursor:pointer">👤 Assign to Team Lead</button>
+          </div>
+
+          <div style="background:var(--surface);border-radius:10px;border-left:3px solid var(--high);margin-bottom:8px;padding:13px 14px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px">
+              <span style="font-size:14px;font-weight:600;color:var(--t1)">Test emergency power system</span>
+              <span class="status-chip" style="background:rgba(255,140,0,0.1);color:var(--high)">HIGH</span>
+            </div>
+            <button style="width:100%;padding:9px;background:rgba(255,171,0,0.08);border:1px solid rgba(255,171,0,0.3);border-radius:8px;font-family:'DM Sans';font-size:13px;font-weight:600;color:var(--pm);cursor:pointer">👤 Assign to Team Lead</button>
+          </div>
+
+          <div class="divider"></div>
+
+          <!-- Assigned -->
+          <div class="new-section-header">
+            <div class="new-section-title" style="margin-bottom:0">Assigned to TLs</div>
+            <span class="new-count-badge" style="background:rgba(74,159,255,0.12);color:var(--sm)">6</span>
+          </div>
+
+          <div class="new-task-card" style="border-left-color:var(--high)">
+            <div class="new-task-info">
+              <div class="new-task-title">Install main electrical panel</div>
+              <div class="new-task-sub">TL: Carmen Ortiz</div>
+            </div>
+            <span class="status-chip">IN PROG</span>
+          </div>
+          <div class="new-task-card" style="border-left-color:var(--urgent)">
+            <div class="new-task-info">
+              <div class="new-task-title">Install generator transfer switch</div>
+              <div class="new-task-sub">TL: Carmen Ortiz</div>
+            </div>
+            <span class="status-chip" style="color:var(--tl);background:rgba(52,208,88,0.1)">QC REVIEW</span>
+          </div>
+
+          <div style="height:16px"></div>
+        </div>
+        <div class="new-bottom-nav-wrap">
+          <div class="new-bottom-nav">
+            <div class="new-nav-item active" style="color:var(--sm);background:rgba(74,159,255,0.1)">
+              <div class="new-nav-icon">⊞</div><span>DASH</span>
+            </div>
+            <div class="new-nav-item"><div class="new-nav-icon">💬</div><span>MSGS</span></div>
+            <div class="new-nav-item"><div class="new-nav-icon">✓</div><span>TASKS</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!--  TL SCREEN — shows assign sheet in new design                 -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="screen-tl" class="screen-section">
+  <div class="comparison">
+    <!-- BEFORE -->
+    <div>
+      <div class="col-label">CURRENT (assign sheet)</div>
+      <div class="phone old-phone">
+        <div class="status-bar old"><span>9:41</span><div class="status-icons">▶ WiFi 🔋</div></div>
+        <div class="old-appbar" style="background:#F9A825"><span>Crew Status Overview</span></div>
+        <div class="old-body" style="background:#FAFAFA">
+          <div class="old-section-title">My Tasks <span style="background:#FFF3E0;color:#E65100;font-size:12px;font-weight:700;padding:1px 8px;border-radius:10px;margin-left:4px">2</span></div>
+          <div class="old-card" style="flex-direction:column;gap:8px">
+            <div style="display:flex;justify-content:space-between">
+              <span style="font-size:14px;font-weight:600">Install main electrical panel</span>
+              <span class="old-badge" style="background:rgba(230,81,0,0.15);color:#E65100">High</span>
+            </div>
+            <div style="font-size:12px;color:#757575">Install 400A main panel on ground floor</div>
+            <button style="width:100%;padding:10px;background:white;border:1px solid #1565C0;border-radius:8px;color:#1565C0;font-size:13px;font-weight:600;cursor:pointer">👤 Assign to Team Member</button>
+          </div>
+        </div>
+        <!-- Old sheet -->
+        <div style="background:white;border-top:1px solid #E0E0E0;padding:16px;border-radius:16px 16px 0 0">
+          <div style="width:32px;height:4px;background:#E0E0E0;border-radius:2px;margin:0 auto 12px"></div>
+          <div style="font-size:16px;font-weight:700;margin-bottom:16px;color:#212121">Install main electrical panel</div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#212121">Confirm Priority</div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+            <span style="padding:6px 12px;border:1px solid #E0E0E0;border-radius:8px;font-size:13px;color:#757575">Low</span>
+            <span style="padding:6px 12px;border:1px solid #E0E0E0;border-radius:8px;font-size:13px;color:#757575">Medium</span>
+            <span style="padding:6px 12px;background:rgba(230,81,0,0.1);border:1px solid #E65100;border-radius:8px;font-size:13px;font-weight:600;color:#E65100">High</span>
+            <span style="padding:6px 12px;border:1px solid #E0E0E0;border-radius:8px;font-size:13px;color:#757575">Urgent</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px;color:#212121">Assign to Team Member</div>
+          <div style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #E0E0E0;border-radius:8px;margin-bottom:8px">
+            <div style="width:20px;height:20px;border-radius:50%;border:2px solid #1565C0"></div>
+            <span style="font-size:14px">Mike Rodriguez</span>
+          </div>
+          <button style="width:100%;padding:14px;background:#1565C0;border:none;border-radius:10px;color:white;font-size:15px;font-weight:700;cursor:pointer">Assign to Crew Member</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div>
+      <div class="col-label new">REDESIGNED (assign sheet)</div>
+      <div class="phone new-phone">
+        <div class="status-bar" style="background:var(--bg)"><span style="font-family:'Barlow Condensed';font-weight:600;font-size:13px">9:41</span><div class="status-icons" style="color:var(--t2)">▶ WiFi 🔋</div></div>
+        <div class="new-appbar">
+          <div class="new-appbar-left">
+            <span class="role-badge" style="background:rgba(52,208,88,0.12);border:1px solid rgba(52,208,88,0.3);color:var(--tl)">TL</span>
+            <span class="new-appbar-title">Crew Status</span>
+          </div>
+          <div class="new-appbar-icons">
+            <div class="new-icon-btn">🔔</div>
+            <div class="new-icon-btn">👤</div>
+          </div>
+        </div>
+        <!-- Behind sheet -->
+        <div class="new-body" style="padding-bottom:0;background:rgba(15,17,23,0.7)">
+          <div class="new-section-title">My Tasks</div>
+          <div class="new-task-card" style="border-left-color:var(--high);opacity:0.4">
+            <div class="new-task-info">
+              <div class="new-task-title">Install main electrical panel</div>
+              <div class="new-task-sub">Install 400A main panel on ground floor</div>
+            </div>
+            <span class="status-chip">HIGH</span>
+          </div>
+        </div>
+        <!-- New assign sheet -->
+        <div class="assign-sheet">
+          <div class="sheet-handle"></div>
+          <div class="sheet-body">
+            <div class="sheet-title">Install main electrical panel</div>
+            <div class="sheet-label">Confirm Priority</div>
+            <div class="priority-chips">
+              <span class="p-chip" style="border-color:var(--low);color:var(--low);background:rgba(107,114,128,0.08)">Low</span>
+              <span class="p-chip" style="border-color:var(--medium);color:var(--medium);background:rgba(74,159,255,0.08)">Medium</span>
+              <span class="p-chip" style="border-color:var(--high);color:var(--high);background:rgba(255,140,0,0.15);font-weight:700">● High</span>
+              <span class="p-chip" style="border-color:var(--border);color:var(--t3);background:var(--surface)">Urgent</span>
+            </div>
+            <div class="sheet-label">Assign to Team Member</div>
+            <div class="member-list">
+              <div class="member-row">
+                <div class="member-avatar" style="background:rgba(74,159,255,0.15);color:var(--sm)">MR</div>
+                <div>
+                  <div class="member-name">Mike Rodriguez</div>
+                  <div class="member-sub">2 active tasks</div>
+                </div>
+                <div style="width:18px;height:18px;border:1.5px solid var(--border);border-radius:50%"></div>
+              </div>
+              <div class="member-row selected">
+                <div class="member-avatar" style="background:rgba(52,208,88,0.15);color:var(--tl)">JS</div>
+                <div>
+                  <div class="member-name">Jake Santos</div>
+                  <div class="member-sub">1 active task</div>
+                </div>
+                <div style="width:18px;height:18px;background:var(--tl);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#000">✓</div>
+              </div>
+            </div>
+            <button class="assign-cta" style="background:var(--tl)">Assign to Jake Santos</button>
+          </div>
+        </div>
+        <!-- no bottom nav — sheet covers it -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!--  TM SCREEN                                                    -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="screen-tm" class="screen-section">
+  <div class="comparison">
+    <!-- BEFORE -->
+    <div>
+      <div class="col-label">CURRENT</div>
+      <div class="phone old-phone">
+        <div class="status-bar old"><span>9:41</span><div class="status-icons">▶ WiFi 🔋</div></div>
+        <div class="old-appbar" style="background:#F9A825"><span>My Workspace</span></div>
+        <div class="old-body">
+          <div class="old-card" style="background:#FFFDE7;border-left:3px solid #F9A825">
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#E65100;margin-bottom:4px;display:flex;align-items:center;gap:6px">▶ Current Task</div>
+              <div style="font-size:18px;font-weight:600;color:#212121;margin-bottom:4px">Install main electrical panel</div>
+              <div style="font-size:13px;color:#757575;margin-bottom:14px">Install 400A main panel…</div>
+              <button class="old-btn amber" style="width:100%;padding:12px">Open Task</button>
+            </div>
+          </div>
+          <div style="margin:16px 0 12px;font-size:18px;font-weight:700;color:#212121">Up Next (3)</div>
+          <div class="old-card">
+            <div style="color:#1565C0;font-size:20px">📋</div>
+            <div style="flex:1">
+              <div class="old-card-title">Terminate wire at panel B</div>
+            </div>
+            <span class="old-badge" style="background:rgba(244,67,54,0.15);color:#C62828;align-self:flex-start">Urgent</span>
+          </div>
+          <div class="old-card">
+            <div style="color:#1565C0;font-size:20px">📋</div>
+            <div style="flex:1"><div class="old-card-title">Install outlets and switches</div></div>
+            <span class="old-badge" style="background:rgba(33,150,243,0.15);color:#1565C0;align-self:flex-start">Medium</span>
+          </div>
+          <div style="margin:16px 0 12px;font-size:18px;font-weight:700;color:#212121">My Stats</div>
+          <div class="old-stat-grid">
+            <div class="old-stat-card">
+              <div class="old-stat-icon" style="color:#2E7D32">✓</div>
+              <div class="old-stat-value" style="color:#2E7D32">0</div>
+              <div class="old-stat-label">Tasks<br>Done</div>
+            </div>
+            <div class="old-stat-card">
+              <div class="old-stat-icon" style="color:#1565C0">⏱</div>
+              <div class="old-stat-value" style="color:#1565C0">1</div>
+              <div class="old-stat-label">In<br>Progress</div>
+            </div>
+            <div class="old-stat-card" style="grid-column:span 2">
+              <div class="old-stat-icon" style="color:#E65100">📋</div>
+              <div class="old-stat-value" style="color:#E65100">3</div>
+              <div class="old-stat-label">Up Next</div>
+            </div>
+          </div>
+        </div>
+        <div class="old-bottom-nav">
+          <div class="old-nav-item active"><div class="old-nav-icon">⊞</div>Dashboard</div>
+          <div class="old-nav-item"><div class="old-nav-icon">💬</div>Messages</div>
+          <div class="old-nav-item"><div class="old-nav-icon">✓</div>Tasks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER -->
+    <div>
+      <div class="col-label new">REDESIGNED</div>
+      <div class="phone new-phone">
+        <div class="status-bar" style="background:var(--bg)"><span style="font-family:'Barlow Condensed';font-weight:600;font-size:13px">9:41</span><div class="status-icons" style="color:var(--t2)">▶ WiFi 🔋</div></div>
+        <div class="new-appbar">
+          <div class="new-appbar-left">
+            <span class="role-badge" style="background:rgba(0,200,232,0.12);border:1px solid rgba(0,200,232,0.3);color:var(--tm)">TM</span>
+            <span class="new-appbar-title">My Workspace</span>
+          </div>
+          <div class="new-appbar-icons">
+            <div class="new-icon-btn">🔔</div>
+            <div class="new-icon-btn">👤</div>
+          </div>
+        </div>
+        <div class="new-body phone-body-scroll" style="max-height:500px">
+          <!-- Current task card — TM accent -->
+          <div class="current-task-card">
+            <div class="current-task-label">NOW WORKING</div>
+            <div class="current-task-title">Install main electrical panel</div>
+            <div class="current-task-sub">Ground floor · 400A main panel install</div>
+            <div class="timer-display">00:47:22</div>
+            <button class="open-task-btn">Open Task →</button>
+          </div>
+
+          <!-- Stats inline -->
+          <div class="new-stat-row" style="margin-bottom:20px">
+            <div class="new-stat-card" style="border-left-color:var(--tl)">
+              <div class="new-stat-value" style="color:var(--tl)">0</div>
+              <div class="new-stat-label">Done</div>
+            </div>
+            <div class="new-stat-card" style="border-left-color:var(--tm)">
+              <div class="new-stat-value" style="color:var(--tm)">1</div>
+              <div class="new-stat-label">Active</div>
+            </div>
+            <div class="new-stat-card" style="border-left-color:var(--pm)">
+              <div class="new-stat-value" style="color:var(--pm)">3</div>
+              <div class="new-stat-label">Up Next</div>
+            </div>
+          </div>
+
+          <!-- Up Next -->
+          <div class="new-section-header">
+            <div class="new-section-title" style="margin-bottom:0">Up Next</div>
+            <span class="new-count-badge" style="background:rgba(255,171,0,0.12);color:var(--pm)">3</span>
+          </div>
+
+          <div class="new-task-card" style="border-left-color:var(--urgent)">
+            <div class="new-task-info">
+              <div class="new-task-title">Terminate wire at panel B</div>
+              <div class="new-task-sub">All branch circuits → sub-panel B</div>
+            </div>
+            <span class="status-chip" style="color:var(--urgent);background:rgba(255,68,68,0.1)">URGENT</span>
+          </div>
+          <div class="new-task-card" style="border-left-color:var(--high)">
+            <div class="new-task-info">
+              <div class="new-task-title">Install emergency lighting</div>
+              <div class="new-task-sub">3rd floor egress lighting per code</div>
+            </div>
+            <span class="status-chip" style="color:var(--high);background:rgba(255,140,0,0.1)">HIGH</span>
+          </div>
+          <div class="new-task-card" style="border-left-color:var(--medium)">
+            <div class="new-task-info">
+              <div class="new-task-title">Install outlets &amp; switches</div>
+              <div class="new-task-sub">Floor 1 receptacles &amp; switches</div>
+            </div>
+            <span class="status-chip">MEDIUM</span>
+          </div>
+
+          <div style="height:16px"></div>
+        </div>
+        <div class="new-bottom-nav-wrap">
+          <div class="new-bottom-nav">
+            <div class="new-nav-item active" style="color:var(--tm);background:rgba(0,200,232,0.1)">
+              <div class="new-nav-icon">⊞</div><span>DASH</span>
+            </div>
+            <div class="new-nav-item"><div class="new-nav-icon">💬</div><span>MSGS</span></div>
+            <div class="new-nav-item"><div class="new-nav-icon">✓</div><span>TASKS</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!--  LOGIN / SPLASH                                               -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div id="screen-login" class="screen-section">
+  <div class="comparison">
+    <!-- BEFORE Splash -->
+    <div>
+      <div class="col-label">CURRENT — Splash</div>
+      <div class="phone old-phone">
+        <div style="background:#F9A825;min-height:600px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px">
+          <div style="font-size:100px">⚡</div>
+          <div style="font-size:32px;font-weight:700;color:white;letter-spacing:1.2px">ElectricSync</div>
+          <div style="font-size:14px;color:rgba(255,255,255,0.75);letter-spacing:0.5px">For Electricians &amp; Professionals</div>
+          <div style="margin-top:24px;width:36px;height:36px;border:3px solid rgba(255,255,255,0.5);border-top-color:white;border-radius:50%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER Splash -->
+    <div>
+      <div class="col-label new">REDESIGNED — Splash</div>
+      <div class="phone new-phone">
+        <div class="status-bar" style="background:var(--bg)"><span style="font-family:'Barlow Condensed';font-weight:600;font-size:13px">9:41</span></div>
+        <div class="new-splash">
+          <div class="splash-geo-1"></div>
+          <div class="splash-geo-2"></div>
+          <div class="splash-geo-3"></div>
+          <div class="splash-content">
+            <div class="splash-logo-box">⚡</div>
+            <div class="splash-title-electric">ELECTRIC</div>
+            <div class="splash-title-sync">SYNC</div>
+            <div class="splash-sub">Field Coordination System</div>
+            <div class="splash-loader">
+              <div class="splash-dot"></div>
+              <div class="splash-dot"></div>
+              <div class="splash-dot"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Login comparison on same tab -->
+  <div style="margin-top:40px;text-align:center;margin-bottom:16px">
+    <div class="col-label" style="display:inline-block">Login Screen Comparison</div>
+  </div>
+  <div class="comparison">
+    <!-- BEFORE Login -->
+    <div>
+      <div class="col-label">CURRENT — Login</div>
+      <div class="phone old-phone">
+        <div class="status-bar old"><span>9:41</span></div>
+        <div class="old-login-body">
+          <div class="old-logo-circle">⚡</div>
+          <div class="old-login-title">Welcome Back</div>
+          <div class="old-login-sub">Sign in to sync your electrical projects</div>
+          <div class="old-input"><span class="old-input-icon">✉</span><span>Email Address</span></div>
+          <div class="old-input"><span class="old-input-icon">🔒</span><span>Password</span></div>
+          <div style="text-align:right;margin-bottom:24px;font-size:13px;color:#F9A825;cursor:pointer">Forgot Password?</div>
+          <button class="old-login-btn">Sign In</button>
+          <div class="old-demo-box">
+            <div class="old-demo-title">ℹ Demo Accounts</div>
+            <div class="old-demo-row"><span class="old-demo-role">Project Manager</span><span>pm@esync.com</span></div>
+            <div class="old-demo-row"><span class="old-demo-role">Site Manager</span><span>site@esync.com</span></div>
+            <div class="old-demo-row"><span class="old-demo-role">Team Lead</span><span>lead@esync.com</span></div>
+            <div class="old-demo-row"><span class="old-demo-role">Team Member</span><span>member@esync.com</span></div>
+            <div style="margin-top:10px;padding:6px 12px;background:white;border:1px solid #E2E8F0;border-radius:6px;font-size:12px;color:#1E293B;font-weight:600">Password: password123</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER Login -->
+    <div>
+      <div class="col-label new">REDESIGNED — Login</div>
+      <div class="phone new-phone">
+        <div class="status-bar" style="background:var(--bg)"><span style="font-family:'Barlow Condensed';font-weight:600;font-size:13px">9:41</span></div>
+        <div class="new-login-body">
+          <div class="new-login-geo"></div>
+          <div class="new-login-inner">
+            <div class="new-login-brand">
+              <div class="new-login-bolt">⚡</div>
+              <div class="new-login-wordmark">ELECTRIC<span>SYNC</span></div>
+            </div>
+            <div class="new-login-title">Welcome back.</div>
+            <div class="new-login-sub">Sign in to your field account</div>
+            <div class="new-input focused">
+              <span class="new-input-icon">✉</span>
+              <span style="color:var(--t1)">pm@esync.com</span>
+            </div>
+            <div class="new-input">
+              <span class="new-input-icon">🔒</span>
+              <span class="new-input-text">••••••••••</span>
+            </div>
+            <div style="text-align:right;margin-bottom:20px;font-size:13px;color:var(--pm);cursor:pointer">Forgot Password?</div>
+            <button class="new-login-btn">Sign In</button>
+            <div class="new-demo-box">
+              <div class="new-demo-header">
+                <span style="font-size:14px">⚡</span>
+                <span class="new-demo-title">Demo Accounts</span>
+              </div>
+              <div class="new-demo-row">
+                <div class="role-dot" style="background:var(--pm)"></div>
+                <span class="new-demo-role">Project Manager</span>
+                <span class="new-demo-email">pm@esync.com</span>
+              </div>
+              <div class="new-demo-row">
+                <div class="role-dot" style="background:var(--sm)"></div>
+                <span class="new-demo-role">Site Manager</span>
+                <span class="new-demo-email">site@esync.com</span>
+              </div>
+              <div class="new-demo-row">
+                <div class="role-dot" style="background:var(--tl)"></div>
+                <span class="new-demo-role">Team Lead</span>
+                <span class="new-demo-email">lead@esync.com</span>
+              </div>
+              <div class="new-demo-row">
+                <div class="role-dot" style="background:var(--tm)"></div>
+                <span class="new-demo-role">Team Member</span>
+                <span class="new-demo-email">member@esync.com</span>
+              </div>
+              <div style="margin-top:10px;padding:6px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--t2);font-family:'DM Mono',monospace">password: password123</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function showScreen(role, btn) {
+    document.querySelectorAll('.screen-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('screen-' + role).classList.add('active');
+    btn.classList.add('active');
+  }
+</script>
+</body>
+</html>

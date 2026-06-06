@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../models/auth_user.dart';
 import '../../models/task.dart';
 import '../../services/task_service.dart';
+import '../../theme/app_theme.dart';
 
 class QCSignoff extends StatefulWidget {
   final AuthUser currentUser;
@@ -33,7 +34,7 @@ class _QCSignoffState extends State<QCSignoff> {
           _loading = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) setState(() { _error = 'Could not load tasks'; _loading = false; });
     }
   }
@@ -44,72 +45,71 @@ class _QCSignoffState extends State<QCSignoff> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${task.title} approved ✓'),
-            backgroundColor: Colors.green,
+            content: Text('${task.title} approved', style: AppText.body(14)),
+            backgroundColor: AppColors.tl.withValues(alpha: 0.9),
           ),
         );
         _load();
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Approval failed'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Approval failed', style: AppText.body(14)), backgroundColor: AppColors.urgent.withValues(alpha: 0.9)),
         );
       }
     }
   }
 
   void _showRejectSheet(Task task) {
-    final notesController = TextEditingController();
+    final notesCtrl = TextEditingController();
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: AppColors.surfaceHigh,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          16, 16, 16, MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Reject: ${task.title}',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Task will be sent back to the crew member.',
-              style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: notesController,
-              maxLines: 3,
-              autofocus: true,
-              decoration: const InputDecoration(
-                labelText: 'Rejection notes (required)',
-                border: OutlineInputBorder(),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, _) => Padding(
+          padding: EdgeInsets.fromLTRB(20, 8, 20, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(child: Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)))),
+              const SizedBox(height: 16),
+              Row(children: [
+                const Icon(Icons.cancel_outlined, color: AppColors.urgent, size: 18),
+                const SizedBox(width: 8),
+                Expanded(child: Text('Reject: ${task.title}', style: AppText.display(16, weight: FontWeight.w700))),
+              ]),
+              const SizedBox(height: 6),
+              Text('Task will be sent back to the crew member.', style: AppText.body(13, color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: notesCtrl,
+                maxLines: 3,
+                autofocus: true,
+                style: AppText.body(14),
+                decoration: const InputDecoration(labelText: 'Rejection notes (required)'),
               ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
+              const SizedBox(height: 16),
+              PrimaryButton(
+                label: 'Send Back to Crew',
+                icon: Icons.undo,
+                color: AppColors.urgent,
+                fullWidth: true,
                 onPressed: () async {
-                  final notes = notesController.text.trim();
+                  final notes = notesCtrl.text.trim();
                   if (notes.isEmpty) {
                     ScaffoldMessenger.of(ctx).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please add rejection notes'),
-                        backgroundColor: Colors.orange,
-                      ),
+                      SnackBar(content: Text('Add rejection notes first', style: AppText.body(14)), backgroundColor: AppColors.high.withValues(alpha: 0.9)),
                     );
                     return;
                   }
                   Navigator.pop(ctx);
+                  notesCtrl.dispose();
                   try {
                     await _taskService.updateTask(task.id, {
                       'status': 'in_progress',
@@ -117,90 +117,84 @@ class _QCSignoffState extends State<QCSignoff> {
                     });
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${task.title} sent back to crew'),
-                          backgroundColor: Colors.orange,
-                        ),
+                        SnackBar(content: Text('${task.title} sent back to crew', style: AppText.body(14)), backgroundColor: AppColors.high.withValues(alpha: 0.9)),
                       );
                       _load();
                     }
-                  } catch (e) {
+                  } catch (_) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Rejection failed'), backgroundColor: Colors.red),
+                        SnackBar(content: Text('Rejection failed', style: AppText.body(14)), backgroundColor: AppColors.urgent.withValues(alpha: 0.9)),
                       );
                     }
                   }
                 },
-                icon: const Icon(Icons.cancel),
-                label: const Text('Send Back to Crew'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
-    );
+    ).whenComplete(() => notesCtrl.dispose());
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('QC Sign-off'),
+        backgroundColor: AppColors.background,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18, color: AppColors.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Row(children: [
+          RoleBadge('TL', color: AppColors.tl),
+          const SizedBox(width: 10),
+          Text('QC Sign-off', style: AppText.body(16, weight: FontWeight.w600)),
+        ]),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _load,
-            tooltip: 'Refresh',
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: AppIconButton(Icons.refresh, onPressed: _load),
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: AppColors.tl, strokeWidth: 2))
           : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 8),
-                      TextButton(onPressed: _load, child: const Text('Retry')),
-                    ],
-                  ),
-                )
+              ? Center(child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_error!, style: AppText.body(14, color: AppColors.urgent)),
+                    const SizedBox(height: 12),
+                    GhostButton(label: 'Retry', onPressed: _load),
+                  ],
+                ))
               : RefreshIndicator(
+                  color: AppColors.tl,
+                  backgroundColor: AppColors.surfaceHigh,
                   onRefresh: _load,
                   child: _pendingQC.isEmpty
-                      ? ListView(
-                          children: [
-                            const SizedBox(height: 80),
-                            Center(
-                              child: Column(children: [
-                                Icon(Icons.check_circle_outline,
-                                    size: 72, color: Colors.green[300]),
-                                const SizedBox(height: 16),
-                                const Text(
-                                  'No tasks awaiting QC',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  'Tasks will appear here when crew marks them complete.',
-                                  style: TextStyle(color: Colors.grey[600]),
-                                  textAlign: TextAlign.center,
-                                ),
-                              ]),
+                      ? ListView(children: [
+                          const SizedBox(height: 80),
+                          Center(child: Column(children: [
+                            Container(
+                              width: 72, height: 72,
+                              decoration: BoxDecoration(
+                                color: AppColors.tl.withValues(alpha: 0.08),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.tl.withValues(alpha: 0.2)),
+                              ),
+                              child: const Icon(Icons.check_circle_outline, size: 36, color: AppColors.tl),
                             ),
-                          ],
-                        )
+                            const SizedBox(height: 16),
+                            Text('All clear', style: AppText.display(22, weight: FontWeight.w700, color: AppColors.tl)),
+                            const SizedBox(height: 6),
+                            Text('No tasks awaiting QC review', style: AppText.body(14, color: AppColors.textSecondary)),
+                            const SizedBox(height: 8),
+                            Text('Tasks appear here when crew marks them complete.', style: AppText.body(13, color: AppColors.textMuted)),
+                          ])),
+                        ])
                       : ListView.separated(
                           padding: const EdgeInsets.all(16),
                           itemCount: _pendingQC.length,
@@ -212,65 +206,49 @@ class _QCSignoffState extends State<QCSignoff> {
   }
 
   Widget _buildQCCard(Task task) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.pending_actions, color: Colors.teal[700]),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    task.title,
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
-            ),
-            if (task.description.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                task.description,
-                style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _showRejectSheet(task),
-                    icon: const Icon(Icons.cancel, size: 18),
-                    label: const Text('Reject'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                      side: const BorderSide(color: Colors.red),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () => _approve(task),
-                    icon: const Icon(Icons.check_circle, size: 18),
-                    label: const Text('Approve'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: const Border(left: BorderSide(color: AppColors.tl, width: 3)),
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.pending_actions, color: AppColors.tl, size: 16),
+            const SizedBox(width: 8),
+            Expanded(child: Text(task.title, style: AppText.body(15, weight: FontWeight.w600))),
+            const StatusChip('QC REVIEW', color: AppColors.tl),
+          ]),
+          if (task.description.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(task.description, style: AppText.body(13, color: AppColors.textSecondary), maxLines: 2, overflow: TextOverflow.ellipsis),
           ],
-        ),
+          const SizedBox(height: 14),
+          Row(children: [
+            Expanded(
+              child: GhostButton(
+                label: 'Reject',
+                icon: Icons.cancel_outlined,
+                color: AppColors.urgent,
+                fullWidth: true,
+                onPressed: () => _showRejectSheet(task),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: PrimaryButton(
+                label: 'Approve',
+                icon: Icons.check_circle_outline,
+                color: AppColors.tl,
+                fullWidth: true,
+                onPressed: () => _approve(task),
+              ),
+            ),
+          ]),
+        ],
       ),
     );
   }
